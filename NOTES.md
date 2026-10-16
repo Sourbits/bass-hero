@@ -1,5 +1,133 @@
 # Bass Hero notes
 
+## Summary: timing system
+
+Everything from this run is on the `timing-system` branch, branched from
+`bass-hero-setup`, with one commit per milestone. Nothing is pushed. Build,
+lint and all 152 tests pass. No new dependencies, so there's nothing to
+install.
+
+### What I built
+
+- **Milestone 1, onset detection** (`src/onset/`). It finds the exact sample
+  where each pluck starts, without waiting for pitch. Each pluck is then
+  paired with the existing pitch detector to name the note, and the note
+  keeps the pluck's time. All times are on one game clock.
+- **Milestone 2, timing judgment** (`src/timing/`, `src/config/timing.ts`).
+  Perfect is ±50 ms, Good ±120 ms, otherwise Miss, with early/late and ms.
+  Wrong notes and unplayed notes are Misses. A calibration offset is
+  subtracted from every hit, and the calibration math suggests one from
+  plucks played along to a beat.
+- **Milestone 3, test game screen.** `/play` slides 16 note circles into a
+  target outline at an adjustable tempo, with feedback such as "Good · Late
+  +80 ms", a running score and an end summary. `/calibrate` is the
+  calibration screen. `?demo` on either page swaps the mic for a silent
+  synthesized bass, so the whole loop can be checked without an instrument.
+
+### Decisions
+
+Details are under "Timing system decisions".
+
+- **The clock.** The game clock is the AudioContext clock, in ms. Audio
+  blocks carry the audio thread's own time, so pluck times are
+  sample-accurate. The screen reads the same clock (via
+  `getOutputTimestamp()`) every frame. `performance.now()` would drift from
+  the audio clock, and any future music has to be scheduled on the audio
+  clock anyway.
+- **Calibration is visual.** You pluck as circles reach the outline, the same
+  as in the game, with no click track. That measures the delay that matters
+  in the game, and the mic can't mistake a click for a pluck. It's the median
+  of 16 beats, saved per browser.
+- **A ±200 ms Miss window.** A right note just outside Good shows "Miss ·
+  Late +150 ms" instead of being ignored. Plucks with no clear pitch, or
+  nowhere near a note, are ignored rather than penalized.
+- **Octaves are strict.** E2 for E1 is a wrong note. There's an
+  `ignoreOctave` switch in the config in case a laptop mic hears low E an
+  octave up.
+- **Tuning values.** All of them are in `src/config/timing.ts`: windows,
+  grace time, points and the calibration beat.
+- **Calibration screen in milestone 3.** It reuses the game's sliding-circle
+  view, so it was built and committed with the game screen rather than with
+  milestone 2's judgment code.
+
+### Onset accuracy achieved
+
+Generated plucks from B0 up to G3, including low E (41.2 Hz), at five
+starting phases, at 44.1 and 48 kHz, with background noise. Nothing was
+missed and nothing extra was detected. Errors are almost always slightly late
+and never more than 0.1 ms early.
+
+| Case | Worst error | Low E worst |
+| --- | --- | --- |
+| Pluck onto silence, or after muting the old note (attack ≤ 2 ms) | 3.4 ms | 2.6 ms |
+| Quick re-plucks every 150 ms, each after a 15 ms mute | 2.6 ms | 2.6 ms |
+| Slow 5 ms attack | 5.9 ms | 3.2 ms |
+| Re-plucking a note that's still ringing, with no mute | 19.4 ms | 14.6 ms |
+
+The full table is under "Onset detection". In the browser, a demo run of all
+16 notes came out exactly as scripted ("On time", "Late +25 ms", "Early
+−30 ms", …). Demo calibration of a player who's 40 ms late suggested 41 ms.
+
+**Circles hit the outline on time.** This is unit-tested: at a note's target
+time, `circleX()` puts its center exactly on the outline. In the browser I
+also measured the drawn circles against the clock, and every upcoming circle
+was where it should be to within 0.001 ms.
+
+### What doesn't work yet, or isn't verified
+
+- **Not tried with a real mic.** The built-in browser I tested with blocks
+  microphone access. The demo modes cover everything after the mic, through
+  the same capture path.
+- **Re-plucking a ringing note without muting it** can be timed up to ~19 ms
+  late on low notes. A note *quieter* than one still ringing on another
+  string, without a mute, isn't detected at all.
+- **Two plucks closer than 60 ms** count as one.
+- **Feedback comes ~0.1 s after the pluck**, because that's how long naming a
+  low note takes. Timing isn't affected.
+- **Only Chromium tested**, not Safari or Firefox. There's no input device
+  picker, no audio or music in the game, and no dark mode.
+
+### What to test with your real bass
+
+Use Chrome on this computer. An audio interface is best, if you have one. Make
+it the default input, or pick it in Chrome's site settings for localhost.
+
+```bash
+bun run dev
+```
+
+1. **Check the input first.** Open http://localhost:3000/tuner, press Start
+   and allow the mic. Play each open string. You should see E1, A1, D2 and G2,
+   and the input level should jump when you pluck.
+2. **Calibrate.** Open http://localhost:3000/calibrate and press Start. After
+   the grey 4-3-2-1 count-in, pluck any open string each time a purple
+   circle reaches the outline, 16 times. Pluck crisply and mute between
+   plucks. Each pluck shows how late it was heard. At the end, press "Use N
+   ms" to save the suggested offset.
+   - If the spread is over about 30 ms, try again.
+   - Run it twice. The two suggestions should be within ~10 ms of each other.
+   - Expect roughly 20–80 ms with wired gear. Bluetooth headphones or
+     speakers can add 150 ms or more; avoid them.
+3. **Play.** Open http://localhost:3000/play, leave the tempo at 70 BPM and
+   press Start. Play each note as its circle reaches the outline.
+   - When you feel right on time, the feedback should mostly be Perfect,
+     within about ±20 ms. If it's consistently early or late, recalibrate or
+     adjust the offset on `/calibrate`.
+   - Play one note wrong on purpose (it should say "Wrong note") and skip one
+     (it should say "Not played").
+4. **Things I couldn't test:**
+   - The repeated notes (E1 E1, A1 A1…), played both with and without
+     muting between them. A missed second pluck or late timing there is the
+     known weak spot.
+   - Low E through a laptop mic. If it keeps saying "Wrong note: E2", set
+     `ignoreOctave: true` in `src/config/timing.ts`.
+   - Slow tempos (40–50 BPM) and faster ones (100–140 BPM).
+   - Soft playing: whether quiet plucks still register. The onset floor is
+     −45 dBFS; see `floorDb` in `src/onset/onset-detector.ts`.
+5. **If timing seems off,** a short WAV recording of you playing along is the
+   best thing to bring back. Generated plucks can't show how a real attack
+   looks to the detector.
+
 ## Timing system plan
 
 Written before coding, on the `timing-system` branch (branched from
@@ -221,7 +349,10 @@ test list.
   opens one AudioContext on Start, for the mic (or demo bass) and the clock,
   and closes it when the run ends.
 
-## Summary
+## Earlier run: setup and tuner
+
+This section and the ones below it are from the run that built the tuner, on
+the `bass-hero-setup` branch.
 
 ### What I built
 
@@ -306,7 +437,7 @@ If something reads wrong, note which string, fret and input you used. A short
 WAV recording of the problem is the most useful thing to bring back: it can go
 straight into a test with `createFileSource`.
 
-## Decisions
+## Setup and tuner decisions
 
 Choices I made while you were away, so you can change any of them.
 
