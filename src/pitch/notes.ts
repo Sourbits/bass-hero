@@ -90,3 +90,12 @@ export function parseNote(text: string): number | null {
     (Number.parseInt(octave, 10) + 1) * SEMITONES_PER_OCTAVE + semitone + offset
   );
 }
+
+/** A MIDI note number as a name in scientific pitch notation, such as "F#1". */
+export function midiToName(midi: number) {
+  const pitchClass =
+    ((midi % SEMITONES_PER_OCTAVE) + SEMITONES_PER_OCTAVE) %
+    SEMITONES_PER_OCTAVE;
+  const octave = Math.floor(midi / SEMITONES_PER_OCTAVE) - 1;
+  return `${NOTE_NAMES[pitchClass] ?? "C"}${octave}`;
+}

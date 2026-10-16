@@ -145,6 +145,45 @@ detected at all. Real plucks have a sharp attack and usually a brief mute
 from the finger or pick, so this may matter less on a real bass; it's on the
 test list.
 
+### Timing judgment (milestone 2)
+
+- **Config.** All timing and scoring values are in `src/config/timing.ts`:
+  Perfect ±50 ms, Good ±120 ms, a ±200 ms Miss window, a 300 ms wait for late
+  plucks to be named, the octave option, points per rating and the
+  calibration beat.
+- **The judge** (`src/timing/judge.ts`) works in game-clock ms. Hit time =
+  pluck time − calibration offset, and offset = hit − target, so negative
+  means early.
+  - A right note within ±50 ms is Perfect, and within ±120 ms is Good. The
+    edges count.
+  - A right note within ±200 ms but outside Good is a Miss marked early or
+    late, with its ms. Without this window, a pluck at +150 ms would just be
+    ignored, and you'd see "Not played" with no hint you were close.
+  - A wrong note within ±120 ms is a Miss ("Wrong note: F1") and uses up that
+    note. Playing the right one afterwards doesn't count.
+  - A note nobody played becomes a Miss 200 + 300 ms after its target (plus
+    the calibration offset). The 300 ms covers the ~100 ms it takes to name a
+    late pluck.
+  - Plucks with no clear pitch, plucks nowhere near a note, and second plucks
+    of an already-judged note are ignored, not penalized. That way noise, or
+    the detector seeing one pluck as two, doesn't cost points.
+  - When two windows overlap, a pluck goes to the nearest note of that pitch.
+- **Octaves are strict by default.** Playing E2 for E1 is a wrong note. If a
+  laptop mic makes low E read as E2, set `ignoreOctave: true` in the config.
+- **Calibration offset.** The offset is subtracted from every hit. It's saved
+  per browser in localStorage (`src/timing/latency-setting.ts`), because it
+  depends on the device, mic and speakers. The default is 0.
+- **Calibration math** (`src/timing/calibration.ts`). Each beat is matched
+  with its nearest pluck, within 40% of a beat. The suggested offset is the
+  median of (pluck − beat), so a few flubbed beats don't skew it. The spread
+  is the median distance from that offset. It needs at least 8 matched beats.
+- **Calibration screen.** It reuses the game's sliding-circle view, so it's
+  built and committed with the game screen in milestone 3.
+- **Calibrate against visuals, not clicks.** The game is visual, so
+  calibration measures what matters: circle on screen → your pluck → mic →
+  detection. An audible click would also be picked up by the mic and detected
+  as a pluck when there are no headphones.
+
 ## Summary
 
 ### What I built
