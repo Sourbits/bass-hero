@@ -8,7 +8,8 @@
     "dev": "next dev",
     "fix": "ultracite fix",
     "lint": "ultracite check",
-    "start": "next start"
+    "start": "next start",
+    "test": "bun test"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -24,6 +25,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@tailwindcss/turbopack": "^4",
+    "@types/bun": "^1.4.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
