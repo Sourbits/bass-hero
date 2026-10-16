@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AudioSource } from "@/audio/audio-source";
 import { createMicrophoneSource } from "@/audio/microphone-source";
 import { createOscillatorSource } from "@/audio/oscillator-source";
+import { describeAudioError } from "@/components/audio-errors";
 import { Button } from "@/components/ui/button";
 import { detectNotes } from "@/pitch/note-detector";
 import { createNoteSmoother } from "@/pitch/note-smoother";
@@ -14,16 +15,6 @@ const IN_TUNE_CENTS = 5;
 const LEVEL_FLOOR_DB = -60;
 /** The test tone mimics a bass, whose 2nd harmonic is louder than the 1st. */
 const TEST_TONE_HARMONICS = [0.6, 1, 0.5, 0.3, 0.15];
-
-const ERROR_MESSAGES: Record<string, string> = {
-  NotAllowedError:
-    "Microphone access was blocked. Allow it in your browser's site settings, then try again.",
-  NotFoundError: "No microphone or audio input was found.",
-  NotReadableError:
-    "The microphone is busy or unavailable. Close other apps that use it, then try again.",
-  NotSupportedError:
-    "The microphone only works on a secure page (https or localhost).",
-};
 
 type Status =
   | { kind: "idle" }
@@ -52,15 +43,6 @@ function readTestTone(): TestTone | null {
     return { frequency, label: `${frequency} Hz` };
   }
   return null;
-}
-
-function describeError(error: unknown) {
-  if (error instanceof DOMException && error.name in ERROR_MESSAGES) {
-    return ERROR_MESSAGES[error.name];
-  }
-  return error instanceof Error
-    ? `Couldn't start listening: ${error.message}`
-    : "Couldn't start listening.";
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -217,7 +199,7 @@ export function Tuner() {
     } catch (error) {
       stopRef.current = null;
       await stopAll();
-      setStatus({ kind: "error", message: describeError(error) });
+      setStatus({ kind: "error", message: describeAudioError(error) });
     }
   };
 

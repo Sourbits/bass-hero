@@ -184,6 +184,43 @@ test list.
   detection. An audible click would also be picked up by the mic and detected
   as a pluck when there are no headphones.
 
+### Test game screen (milestone 3)
+
+- **Pages.** `/play` is the game and `/calibrate` is calibration. The home page
+  links to both, plus the tuner.
+- **Chart** (`src/game/charts.ts`): "Warm-up", 16 notes, one per beat. It
+  starts with each open string twice (E1 E1 A1 A1 D2 D2 G2 G2), then goes up
+  the neck through the 3rd frets (G1 A1 C2 D2 F2 G2 A2) and ends on E1.
+- **Tempo.** A slider from 40 to 140 BPM, default 70, saved per browser. It
+  can only be changed between runs. A run starts 3 s after you press Start,
+  so the first circle has time to slide in.
+- **Circles** move right to left and take 2 s to cross from the right edge to
+  the outline, which sits 18% in from the left. Every animation frame, each
+  circle is placed from the game clock with `circleX()` in
+  `src/game/layout.ts`. At its target time its center is exactly on the
+  outline (unit-tested). They're HTML elements moved with transforms rather
+  than a canvas, which keeps them easy to style and to measure in tests.
+- **Colors by string.** The usual string for each note: E red, A amber, D
+  green, G blue. A hit circle pops and disappears; a missed one fades and
+  slides on past the outline.
+- **Feedback** shows above the outline: "Perfect", "Good" or "Miss", plus
+  "Late +80 ms", "Early −35 ms", "On time", "Wrong note: F1" or "Not played".
+  It appears when the note has been named, about 0.1 s after the pluck. The
+  timing it shows comes from the pluck itself.
+- **Score.** Perfect 100, Good 50, Miss 0 (in the config). There's a running
+  count of each rating. The end summary gives the counts, the score, and the
+  average timing of Perfect and Good hits, signed so it shows early vs late.
+  If that average is more than 30 ms off, it suggests calibrating.
+- **Demo mode.** `/play?demo` and `/calibrate?demo` replace the mic with a
+  silent synthesized bass, scheduled on the same AudioContext clock. On
+  `/play` it plays the chart with scripted mistakes: on time, ±25–40 ms,
+  Good early and late, a wrong note, a skipped note and a Miss at +160 ms. On
+  `/calibrate` it plays every beat 40 ms late. Demo runs ignore the saved
+  offset.
+- **Shared audio session** (`src/components/game/audio-session.ts`). It
+  opens one AudioContext on Start, for the mic (or demo bass) and the clock,
+  and closes it when the run ends.
+
 ## Summary
 
 ### What I built
