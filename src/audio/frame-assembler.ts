@@ -4,17 +4,22 @@ export interface FrameAssemblerOptions {
   frameSize: number;
   onFrame: (frame: AudioFrame) => void;
   sampleRate: number;
+  /** Clock time of the first sample, in seconds. Defaults to 0. */
+  startTime?: number;
 }
 
 /**
- * Turns sample chunks of any length into fixed-size frames, timed by how many
- * samples came before them. Each frame gets its own copy of the samples, so
- * listeners can keep frames around.
+ * Turns sample chunks of any length into fixed-size frames. Each frame gets
+ * its own copy of the samples, so listeners can keep frames around.
+ *
+ * Frames are timed on the source's clock. A chunk can bring its own time, as
+ * live audio does; otherwise it's assumed to follow the previous chunk.
  */
 export function createFrameAssembler({
   frameSize,
   onFrame,
   sampleRate,
+  startTime = 0,
 }: FrameAssemblerOptions) {
   if (!Number.isInteger(frameSize) || frameSize <= 0) {
     throw new RangeError(
@@ -24,11 +29,11 @@ export function createFrameAssembler({
 
   let pending = new Float32Array(frameSize);
   let filled = 0;
-  let emittedSamples = 0;
+  let pendingTime = startTime;
+  let nextChunkTime = startTime;
 
   const emit = (samples: Float32Array) => {
-    onFrame({ sampleRate, samples, time: emittedSamples / sampleRate });
-    emittedSamples += samples.length;
+    onFrame({ sampleRate, samples, time: pendingTime });
   };
 
   return {
@@ -40,9 +45,13 @@ export function createFrameAssembler({
         emit(frame);
       }
     },
-    push: (samples: Float32Array) => {
+    /** Adds a chunk. `time` is the clock time of its first sample, in seconds. */
+    push: (samples: Float32Array, time = nextChunkTime) => {
       let offset = 0;
       while (offset < samples.length) {
+        if (filled === 0) {
+          pendingTime = time + offset / sampleRate;
+        }
         const count = Math.min(samples.length - offset, frameSize - filled);
         pending.set(samples.subarray(offset, offset + count), filled);
         filled += count;
@@ -55,6 +64,7 @@ export function createFrameAssembler({
           emit(frame);
         }
       }
+      nextChunkTime = time + samples.length / sampleRate;
     },
   };
 }

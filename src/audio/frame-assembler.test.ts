@@ -38,6 +38,16 @@ describe("createFrameAssembler", () => {
     expect(frames.every((frame) => frame.sampleRate === 4)).toBe(true);
   });
 
+  test("uses the time a chunk brings, as live audio does", () => {
+    const { assembler, frames } = collectFrames(4, 4);
+
+    assembler.push(ramp(0, 2), 10);
+    assembler.push(ramp(2, 4), 20);
+    assembler.push(ramp(6, 2));
+
+    expect(frames.map((frame) => frame.time)).toEqual([10, 20.5]);
+  });
+
   test("flush emits the leftover samples as a short frame", () => {
     const { assembler, frames } = collectFrames(4);
 

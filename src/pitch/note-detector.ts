@@ -14,8 +14,10 @@ export interface NoteReading {
   levelDb: number;
   /** The note being played, or null when it's too quiet or not clearly a note. */
   note: Note | null;
-  /** Seconds since the source started, at the end of the analyzed window. */
+  /** End of the analyzed window on the source's clock, in seconds. */
   time: number;
+  /** Start of the analyzed window on the source's clock, in seconds. */
+  windowStart: number;
 }
 
 export interface NoteDetectorOptions {
@@ -117,9 +119,11 @@ export function detectNotes(
       return;
     }
 
+    const time = frame.time + frame.samples.length / frame.sampleRate;
     onReading({
       ...analyze(analysis),
-      time: frame.time + frame.samples.length / frame.sampleRate,
+      time,
+      windowStart: time - analysis.window.length / frame.sampleRate,
     });
   });
 }

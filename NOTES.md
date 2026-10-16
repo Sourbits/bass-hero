@@ -1,5 +1,150 @@
 # Bass Hero notes
 
+## Timing system plan
+
+Written before coding, on the `timing-system` branch (branched from
+`bass-hero-setup`, which has the tuner).
+
+### Parts and seams
+
+Each part is its own folder, testable without the others:
+
+| Part | Folder | Input → output |
+| --- | --- | --- |
+| Audio sources | `src/audio` | Mic, test tone or clip → timestamped frames |
+| Onset detection | `src/onset` | Frames → pluck times |
+| Pitch detection | `src/pitch` | Frames → note readings (already built) |
+| Played notes | `src/onset/played-notes.ts` | Pluck times + note readings → "this note was plucked at this time" |
+| Timing judgment | `src/timing` | Played notes + expected notes → Perfect / Good / Miss |
+| Game logic | `src/game` | Chart, tempo, circle positions, score |
+| Game screen | `src/app/play`, `src/components/game` | Draws it; no timing logic of its own |
+
+### One clock
+
+The game clock is the **AudioContext clock**, in milliseconds.
+
+- Each 128-sample audio block reports its own `currentTime` from the audio
+  thread, so every sample has an exact time on that clock. A pluck time comes
+  from the sample where the pluck starts.
+- The screen reads the same clock every animation frame, using
+  `getOutputTimestamp()` to get a smooth "now" between audio blocks. Circle
+  positions and judgment both use it.
+- Why not `performance.now()`: the audio clock is the one that's
+  sample-accurate. Any later audio (a metronome, backing tracks) has to be
+  scheduled on it anyway, and the two clocks slowly drift apart.
+- Tests don't need a browser: a clip's clock starts at 0 and counts samples.
+
+### Milestone 1: onset detection
+
+- Work in short blocks (~0.7 ms). Track the peak level over the last ~17 ms
+  (longer than half a cycle of low B, so the level doesn't ripple) and compare
+  it with the 17 ms before that. A jump of at least 1.5× above a noise floor
+  is a pluck.
+- Then pin the exact time. Wait 15 ms to see how loud the new note gets, and
+  scan back for the first sample that rises above the old level by 10% of the
+  jump. That sample's time is the onset.
+- Pair each onset with the existing pitch detector. Use the first confident
+  reading whose window starts just after the onset, so the previous note
+  doesn't leak in. The note keeps the onset's time, not the time its pitch was
+  recognized.
+- Test with generated plucks (low E included), at different phases, attack
+  lengths, noise and re-plucks, and record the error.
+
+### Milestone 2: timing judgment
+
+- `src/config/timing.ts` holds the Perfect (±50 ms) and Good (±120 ms)
+  windows, plus the other tuning values.
+- Hit time = onset − calibration offset. A right note within ±50 ms is
+  Perfect, within ±120 ms is Good, and within ±200 ms is a Miss marked early
+  or late. A wrong note within ±120 ms is a Miss. A note nobody played is a
+  Miss once its window has closed.
+- Calibration: the same sliding-circle view as the game, at a steady beat.
+  You pluck on each beat, and the suggested offset is the median of
+  (pluck − beat).
+
+### Milestone 3: test game screen
+
+- `/play`: circles slide right to left into a target outline. Each position
+  is computed from the clock, so a circle's center is on the outline exactly
+  at its target time. Tempo setting, feedback near the target, running score
+  and an end summary.
+- `?demo` mode feeds the game a silent synthesized bass that plays the chart
+  with known timing mistakes. That lets me check the whole loop in the browser
+  without a mic.
+
+## Timing system decisions
+
+### The clock
+
+- **Game clock = AudioContext time, in ms.** Each 128-sample block from the
+  capture worklet carries the audio thread's `currentTime`, so every sample,
+  and so every pluck, has an exact time on it (`src/audio/capture-worklet.ts`).
+- **"Now" for drawing.** `createAudioClock` (`src/audio/audio-clock.ts`) uses
+  `getOutputTimestamp()`: the audio time currently reaching the speakers,
+  advanced smoothly with `performance.now()` between audio updates, and never
+  going backwards.
+- **One AudioContext.** Live sources accept a shared `context`, so the mic,
+  the clock and any synthesized audio are all on one timeline.
+- **Units.** Audio frames and pitch readings keep seconds, the Web Audio
+  convention. Everything in the timing layer (onsets, targets, judgments,
+  offsets) is in ms, and those field names end in `Ms`.
+- **What calibration absorbs.** A pluck reaches the audio thread after the
+  mic and input buffer delay, and "now" lags the audio thread by the output
+  delay. If you play exactly when a circle reaches the outline, the detected
+  pluck lands roughly the input delay plus the output delay late. The
+  calibration offset measures that whole delay for your setup and removes it.
+
+### Onset detection (milestone 1)
+
+`src/onset/onset-detector.ts`. It needs no pitch, so low notes aren't slower
+to detect than high ones.
+
+1. **Detect.** It tracks the peak level in 35 ms windows, one full cycle of a
+   5-string's low B. A pluck is a window at least 1.5× louder than the window
+   before, and louder than −45 dBFS. Or, for quick re-plucks: the note goes
+   quiet (below a tenth of its level) for 12 ms, then comes back to at least
+   a quarter of that level.
+2. **Pin the time.** 15 ms later, once the new note's peak is known, it finds
+   the first sample that rises 10% of the way from the old level to the new
+   peak. If there's a quiet gap of at least 5 ms just before the rise (the
+   player muted the string), it measures from the silence instead. That
+   sample's time is the onset.
+
+**Pairing with the note** (`src/onset/played-notes.ts`). Each onset gets the
+first confident pitch reading whose window starts at least 10 ms after the
+pluck, so the previous note and the attack noise are left out. The note keeps
+the onset's time. Pitch takes about 100 ms to name the note, so feedback
+appears about 0.1 s after the pluck, but the timing isn't affected. If the
+next pluck comes before the note can be named, or nothing is named within
+400 ms, the pluck is reported with no note, and judgment ignores it.
+
+**Accuracy achieved.** Generated plucks of B0, E1 (low E, 41.2 Hz), A1, D2,
+G2, C3 and G3, each at five starting phases, at 44.1 and 48 kHz, with
+background noise at about −55 dBFS. Error = detected − true pluck time. No
+plucks were missed and no extra onsets were found in any of these.
+
+| Case | Pure tone: avg / worst | Bass-like tone: avg / worst | Low E worst |
+| --- | --- | --- | --- |
+| Pluck onto silence or after a mute, instant attack | +0.1 / 0.6 ms | +0.2 / 2.4 ms | 1.8 ms |
+| Same, 2 ms attack | +0.4 / 1.2 ms | +0.9 / 3.4 ms | 2.6 ms |
+| Same, slow 5 ms attack | +0.7 / 2.8 ms | +1.6 / 5.9 ms | 3.2 ms |
+| Quick re-plucks every 150 ms after a 15 ms mute | +0.3 / 0.8 ms | +0.8 / 2.6 ms | 2.6 ms |
+| Re-pluck while the old note still rings, no mute | +1.3 / 7.5 ms | +3.0 / 19.4 ms | 14.6 ms |
+
+"Bass-like" means the second harmonic is louder than the fundamental. Errors
+are almost always late, never more than 0.1 ms early. The tests in
+`src/onset/onset-detector.test.ts` enforce these bounds: 3.5 ms for plucks
+onto silence or after a mute, 6 ms for a 5 ms attack, and 20 ms for the
+no-mute re-pluck.
+
+**Known weak spot: re-plucking a note that's still ringing, with no mute.**
+The detector only sees the new pluck once it's louder than the old note.
+With low notes, that can take most of a cycle (up to ~19 ms). A note that's
+*quieter* than one still ringing on another string, without a mute, isn't
+detected at all. Real plucks have a sharp attack and usually a brief mute
+from the finger or pick, so this may matter less on a real bass; it's on the
+test list.
+
 ## Summary
 
 ### What I built

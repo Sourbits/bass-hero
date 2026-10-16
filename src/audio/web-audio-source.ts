@@ -1,5 +1,9 @@
 import { type AudioSource, DEFAULT_FRAME_SIZE } from "./audio-source";
-import { CAPTURE_PROCESSOR_NAME, loadCaptureWorklet } from "./capture-worklet";
+import {
+  CAPTURE_PROCESSOR_NAME,
+  type CapturedBlock,
+  loadCaptureWorklet,
+} from "./capture-worklet";
 import { createFrameAssembler } from "./frame-assembler";
 import { createFrameEmitter } from "./frame-emitter";
 
@@ -13,6 +17,12 @@ export interface LiveInput {
 export type OpenLiveInput = (context: AudioContext) => Promise<LiveInput>;
 
 export interface WebAudioSourceOptions {
+  /**
+   * An AudioContext to run in, so the source shares its clock with the game.
+   * The caller owns it: stop() leaves it open. Without one, the source makes
+   * its own and closes it on stop().
+   */
+  context?: AudioContext;
   frameSize?: number;
 }
 
@@ -27,19 +37,26 @@ interface Session {
  * and the in-browser test tone both go through this, so they share one
  * capture path.
  *
+ * Frames are timed on the AudioContext clock: each block carries the audio
+ * thread's currentTime, so frame times are exact even if a block arrives late.
+ *
  * Call start() from a user gesture such as a click, because browsers keep
  * audio suspended until the user interacts with the page.
  */
 export function createWebAudioSource(
   openInput: OpenLiveInput,
-  { frameSize = DEFAULT_FRAME_SIZE }: WebAudioSourceOptions = {}
+  {
+    context: sharedContext,
+    frameSize = DEFAULT_FRAME_SIZE,
+  }: WebAudioSourceOptions = {}
 ): AudioSource {
   const emitter = createFrameEmitter();
   let session: Promise<Session> | null = null;
 
   const open = async (): Promise<Session> => {
     // Created before anything is awaited, while the user gesture still counts.
-    const context = new AudioContext({ latencyHint: "interactive" });
+    const context =
+      sharedContext ?? new AudioContext({ latencyHint: "interactive" });
     let input: LiveInput | undefined;
 
     try {
@@ -52,8 +69,8 @@ export function createWebAudioSource(
         onFrame: emitter.emit,
         sampleRate: context.sampleRate,
       });
-      capture.port.onmessage = (event: MessageEvent<Float32Array>) => {
-        assembler.push(event.data);
+      capture.port.onmessage = (event: MessageEvent<CapturedBlock>) => {
+        assembler.push(event.data.samples, event.data.time);
       };
 
       input.node.connect(capture);
@@ -65,7 +82,9 @@ export function createWebAudioSource(
       return { capture, context, input };
     } catch (error) {
       input?.release();
-      await context.close();
+      if (!sharedContext) {
+        await context.close();
+      }
       throw error;
     }
   };
@@ -75,7 +94,9 @@ export function createWebAudioSource(
     capture.disconnect();
     input.node.disconnect();
     input.release();
-    await context.close();
+    if (!sharedContext) {
+      await context.close();
+    }
   };
 
   return {

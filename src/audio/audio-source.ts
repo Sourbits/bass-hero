@@ -19,7 +19,10 @@ export const DEFAULT_FRAME_SIZE = 1024;
 export interface AudioFrame {
   sampleRate: number;
   samples: Float32Array;
-  /** Seconds since the source started, at the first sample of this frame. */
+  /**
+   * Time of the frame's first sample on the source's clock, in seconds. For
+   * live audio that's the AudioContext clock; for clips it starts at 0.
+   */
   time: number;
 }
 

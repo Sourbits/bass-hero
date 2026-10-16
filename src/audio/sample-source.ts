@@ -8,6 +8,8 @@ import { createFrameEmitter } from "./frame-emitter";
 
 export interface SampleSourceOptions {
   frameSize?: number;
+  /** Clock time of the clip's first sample, in seconds. Defaults to 0. */
+  startTime?: number;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface SampleSourceOptions {
  */
 export function createSampleSource(
   clip: AudioClip,
-  { frameSize = DEFAULT_FRAME_SIZE }: SampleSourceOptions = {}
+  { frameSize = DEFAULT_FRAME_SIZE, startTime = 0 }: SampleSourceOptions = {}
 ): AudioSource {
   const emitter = createFrameEmitter();
   let playing = false;
@@ -30,6 +32,7 @@ export function createSampleSource(
       frameSize,
       onFrame: emitter.emit,
       sampleRate: clip.sampleRate,
+      startTime,
     });
     for (
       let offset = 0;

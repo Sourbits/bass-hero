@@ -9,6 +9,7 @@ function reading(time: number, frequency: number | null): NoteReading {
     levelDb: -20,
     note: frequency === null ? null : frequencyToNote(frequency),
     time,
+    windowStart: time - 0.085,
   };
 }
 
