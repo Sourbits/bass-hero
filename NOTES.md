@@ -1,5 +1,90 @@
 # Bass Hero notes
 
+## Summary
+
+### What I built
+
+- **Milestone 1, setup.** Next.js 16 with TypeScript, Bun, shadcn/ui and
+  Ultracite (Biome), plus Bun's test runner. Audio input sits behind one
+  `AudioSource` interface, with five sources: live mic, a silent in-browser
+  test tone, WAV files, generated tones, and in-memory clips.
+- **Milestone 2, note detector.** `detectNotes` turns any audio source into
+  readings of note, octave and cents, using the McLeod Pitch Method. The
+  `/tuner` page shows the note in big type, a cents needle that turns green
+  within ±5 cents, the frequency, and an input level meter.
+- **Checks.** `bun run build` and `bun run lint` pass. `bun test` runs 72
+  tests. They feed generated tones for E1, A1, D2 and G2, plus F1, G♯1, C2,
+  F♯2, C3, G3 and a 5-string's B0, at 44.1 and 48 kHz, and every one is
+  detected within 1 cent. They also cover detuned notes, bass-like harmonics,
+  silence, quiet input, noise and note changes.
+- **In the browser.** With the test tone (`/tuner?tone=E1`, `?tone=56`,
+  `?tone=F%232`), the page showed E1 in tune, A1 31 cents sharp (the math says
+  31.2) and F♯2 in tune, and Stop reset it. There were no console errors.
+- **Commits.** Everything is on the `bass-hero-setup` branch, one commit per
+  milestone. Nothing is pushed; there is no remote.
+
+### Main decisions
+
+Details are in the Decisions section below.
+
+- Pitch detection uses MPM through the `pitchy` library, behind our own
+  `PitchDetector` interface. The comparison is under "Pitch detection
+  options".
+- The analysis window is about 85 ms (4096 samples at 48 kHz), with a new
+  reading every ~21 ms.
+- The tuner is at `/tuner`, not on the home page.
+- `?tone=` swaps the mic for a silent test tone, so the page can be checked
+  without a bass.
+- The file source reads only WAV, so tests can run in Bun.
+
+### What you need to install
+
+Nothing. See "What you need to install" at the bottom.
+
+### What doesn't work yet, or isn't verified
+
+- **The real microphone is untested.** The built-in browser I used blocks
+  microphone access. In it, the page correctly showed "Microphone access was
+  blocked", but I never heard real audio through the mic path. The test tone
+  covers everything after the mic: the AudioWorklet, framing, detection and
+  display.
+- **Only Chromium tested.** I haven't tried Safari or Firefox.
+- **No input picker.** The tuner uses the browser's default input. To use an
+  audio interface, make it the default input in macOS or in the browser's site
+  settings. `createMicrophoneSource` already accepts a `deviceId`, but there's
+  no UI for it.
+- **Light theme only.** There's no dark mode.
+- **No real-time file playback.** The file and tone sources are for tests;
+  they don't play at real speed in the browser.
+- **Clock alignment.** Reading timestamps count samples since start. They
+  aren't yet tied to the audio clock the game will use to schedule notes.
+
+### What to test with your real bass
+
+Run `bun run dev`, open http://localhost:3000/tuner in Chrome, press Start and
+allow the microphone.
+
+1. **Open strings.** Play E, A, D and G (and low B on a 5-string). Check the
+   name and octave: E1, A1, D2, G2, B0.
+2. **Fretted notes.** Try the 5th and 12th frets on each string, and a few
+   notes high on the G string.
+3. **Low E through the laptop mic.** Laptop mics pick up very little at 41 Hz.
+   Watch for low E showing as E2 (one octave up), and compare with an audio
+   interface if you have one.
+4. **Sustain.** Let a low E ring out. The note should stay put as it fades,
+   not jump an octave or flicker before it clears.
+5. **Accuracy.** Compare the cents reading with a hardware or phone tuner.
+6. **Loudness.** Play softly and loudly while watching the input level meter.
+   If soft notes never register, the −50 dB gate is too high for your setup.
+7. **Fast playing.** Play quick note changes and a slide, and note how long
+   the display takes to follow.
+8. **Natural harmonics.** A 12th-fret harmonic should read one octave above
+   the open string. That's correct, not a bug.
+
+If something reads wrong, note which string, fret and input you used. A short
+WAV recording of the problem is the most useful thing to bring back: it can go
+straight into a test with `createFileSource`.
+
 ## Decisions
 
 Choices I made while you were away, so you can change any of them.
