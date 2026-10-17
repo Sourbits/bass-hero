@@ -52,6 +52,11 @@ export function createToneSource(
 export interface Pluck {
   /** Peak level of this note, from 0 to 1. Defaults to 0.5. */
   amplitude?: number;
+  /**
+   * Fret buzz: a short high-pitched click every cycle, as when the string
+   * slaps a fret, at this level relative to the note. Defaults to 0.
+   */
+  buzz?: number;
   /** Fundamental frequency in Hz. */
   frequency: number;
   /**
@@ -96,6 +101,30 @@ export function createNoise(seed = 12_345) {
   };
 }
 
+/** Length of each buzz click, in seconds, and its pitch, in Hz. */
+const BUZZ_CLICK_SECONDS = 0.0008;
+const BUZZ_CLICK_HZ = 3500;
+
+/** The buzz click at this sample of a pluck: one per cycle of the note. */
+function buzzAt(pluck: Pluck, offset: number, sampleRate: number) {
+  if (!pluck.buzz) {
+    return 0;
+  }
+  const time = offset / sampleRate;
+  const intoCycle = (time * pluck.frequency) % 1;
+  const clickTime = intoCycle / pluck.frequency;
+  if (clickTime > BUZZ_CLICK_SECONDS) {
+    return 0;
+  }
+  const shape = Math.sin((Math.PI * clickTime) / BUZZ_CLICK_SECONDS);
+  return (
+    pluck.buzz *
+    (pluck.amplitude ?? 0.5) *
+    shape *
+    Math.sin(2 * Math.PI * BUZZ_CLICK_HZ * clickTime)
+  );
+}
+
 /** Adds one plucked note to `samples`, from `start` up to `end` (in samples). */
 function addPluck(
   samples: Float32Array,
@@ -125,7 +154,8 @@ function addPluck(
       value += level * Math.sin((harmonic + 1) * (angle + phase));
     }
     samples[start + offset] =
-      (samples[start + offset] ?? 0) + value * scale * envelope;
+      (samples[start + offset] ?? 0) +
+      (value * scale + buzzAt(pluck, offset, sampleRate)) * envelope;
   }
 }
 

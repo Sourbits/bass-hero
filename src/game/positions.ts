@@ -1,16 +1,5 @@
+import { type BassString, OPEN_STRING_MIDI } from "@/instrument/bass";
 import { midiToName } from "@/pitch/notes";
-
-/** A 4-string bass in standard tuning, thickest string first. */
-export const STRINGS = ["E", "A", "D", "G"] as const;
-export type BassString = (typeof STRINGS)[number];
-
-/** MIDI note of each open string: E1, A1, D2, G2. */
-export const OPEN_STRING_MIDI: Record<BassString, number> = {
-  A: 33,
-  D: 38,
-  E: 28,
-  G: 43,
-};
 
 /** Where a note is played: which string, and which fret (0 is open). */
 export interface Position {

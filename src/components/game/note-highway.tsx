@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { drawHighway, type HighwayGem } from "@/components/game/draw-highway";
 import { highwayGeometry, laneX } from "@/game/layout";
-import type { BassString } from "@/game/positions";
+import type { BassString } from "@/instrument/bass";
 
 export interface HighwayFeedback {
   detail: string;
@@ -16,6 +16,8 @@ export interface HighwayFeedback {
 }
 
 interface NoteHighwayProps {
+  /** Lanes this run uses; the others are drawn dim. Defaults to all four. */
+  activeLanes?: ReadonlySet<BassString>;
   /** Where to draw beat lines, on the game clock. */
   beatTimesMs: number[];
   feedback: HighwayFeedback | null;
@@ -44,6 +46,7 @@ const TONE_CLASSES: Record<HighwayFeedback["tone"], string> = {
  * strike line at its target time.
  */
 export function NoteHighway({
+  activeLanes,
   beatTimesMs,
   feedback,
   gems,
@@ -54,9 +57,9 @@ export function NoteHighway({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ height: 0, width: 0 });
-  const latest = useRef({ beatTimesMs, gems, onFrame, showLanes });
+  const latest = useRef({ activeLanes, beatTimesMs, gems, onFrame, showLanes });
   const burstStarts = useRef(new Map<string, number>());
-  latest.current = { beatTimesMs, gems, onFrame, showLanes };
+  latest.current = { activeLanes, beatTimesMs, gems, onFrame, showLanes };
 
   useEffect(() => {
     const container = containerRef.current;

@@ -1,4 +1,4 @@
-import type { BassString } from "@/game/positions";
+import type { BassString } from "@/instrument/bass";
 
 /**
  * One color per string, used for highway lanes, notes and the fretboard.

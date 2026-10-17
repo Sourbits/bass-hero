@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Calibration } from "@/components/game/calibration";
 import { CALIBRATION } from "@/config/timing";
 
@@ -10,14 +9,8 @@ export const metadata: Metadata = {
 
 export default function CalibratePage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
       <header className="flex flex-col gap-1">
-        <Link
-          className="text-muted-foreground text-sm hover:text-foreground"
-          href="/"
-        >
-          ← Bass Hero
-        </Link>
         <h1 className="font-semibold text-3xl">Calibrate</h1>
         <p className="text-muted-foreground">
           Pluck any open string each time a bar reaches the strike line: a

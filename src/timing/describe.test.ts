@@ -57,4 +57,16 @@ describe("describeJudgment", () => {
       })
     ).toEqual({ detail: "Not played", label: "Miss" });
   });
+
+  test("says when a note buzzed", () => {
+    expect(
+      describeJudgment({
+        index: 0,
+        offsetMs: 3,
+        playedMidi: 28,
+        rating: "miss",
+        reason: "buzz",
+      })
+    ).toEqual({ detail: "Buzzing: fret it cleanly", label: "Miss" });
+  });
 });

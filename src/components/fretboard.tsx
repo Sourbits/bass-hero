@@ -2,13 +2,8 @@
 
 import { useCallback } from "react";
 import { STRING_COLORS } from "@/components/string-colors";
-import {
-  type BassString,
-  type Position,
-  positionKey,
-  positionName,
-  STRINGS,
-} from "@/game/positions";
+import { type Position, positionKey, positionName } from "@/game/positions";
+import { type BassString, STRINGS } from "@/instrument/bass";
 
 /** Fret markers on most basses: single dots, and a double dot at 12. */
 const MARKERS: Record<number, string> = {

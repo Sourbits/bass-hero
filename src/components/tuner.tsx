@@ -1,26 +1,45 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createAudioHistory } from "@/audio/audio-history";
 import type { AudioSource } from "@/audio/audio-source";
 import { createMicrophoneSource } from "@/audio/microphone-source";
 import { createOscillatorSource } from "@/audio/oscillator-source";
 import { describeAudioError } from "@/components/audio-errors";
+import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
+import { TIMING } from "@/config/timing";
+import { type BassString, OPEN_STRING_MIDI, STRINGS } from "@/instrument/bass";
+import { measureBuzz } from "@/onset/buzz";
 import { detectNotes } from "@/pitch/note-detector";
 import { createNoteSmoother } from "@/pitch/note-smoother";
-import { midiToFrequency, type Note, parseNote } from "@/pitch/notes";
+import {
+  midiToFrequency,
+  midiToName,
+  type Note,
+  parseNote,
+} from "@/pitch/notes";
+import {
+  IN_TUNE_CENTS,
+  nearestString,
+  type StringTuning,
+  tuneString,
+} from "@/pitch/string-tuning";
 
-/** Within this many cents, the needle turns green. */
-const IN_TUNE_CENTS = 5;
 const LEVEL_FLOOR_DB = -60;
 /** The test tone mimics a bass, whose 2nd harmonic is louder than the 1st. */
 const TEST_TONE_HARMONICS = [0.6, 1, 0.5, 0.3, 0.15];
+/** How quickly the buzz meter follows new readings, from 0 to 1. */
+const BUZZ_RESPONSE = 0.3;
 
 type Status =
   | { kind: "idle" }
   | { kind: "starting" }
   | { kind: "listening" }
   | { kind: "error"; message: string };
+
+/** "auto" picks the nearest open string; otherwise the one the player chose. */
+type StringChoice = BassString | "auto";
 
 interface TestTone {
   frequency: number;
@@ -49,40 +68,123 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function NoteName({ note }: { note: Note | null }) {
-  if (!note) {
+function centsText(cents: number) {
+  const amount = Math.abs(Math.round(cents));
+  if (amount === 0) {
+    return "Right on";
+  }
+  const unit = amount === 1 ? "cent" : "cents";
+  return `${amount} ${unit} ${cents > 0 ? "sharp" : "flat"}`;
+}
+
+const DIRECTION_TEXT = {
+  down: { arrow: "↓", hint: "Loosen the string", label: "Tune down" },
+  "in-tune": {
+    arrow: "✓",
+    hint: "Move on to the next string",
+    label: "In tune",
+  },
+  up: { arrow: "↑", hint: "Tighten the string", label: "Tune up" },
+} as const;
+
+function StringPicker({
+  choice,
+  onChoose,
+}: {
+  choice: StringChoice;
+  onChoose: (choice: StringChoice) => void;
+}) {
+  const choices: StringChoice[] = ["auto", ...STRINGS];
+  return (
+    <fieldset className="flex w-full flex-col items-center gap-2">
+      <legend className="mb-2 text-center text-muted-foreground text-sm">
+        String: let it detect which one, or pick it
+      </legend>
+      <div className="flex w-full max-w-sm rounded-xl border p-1">
+        {choices.map((option) => (
+          <ChoiceButton
+            choice={option}
+            key={option}
+            onChoose={onChoose}
+            selected={choice === option}
+          />
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+function ChoiceButton({
+  choice,
+  onChoose,
+  selected,
+}: {
+  choice: StringChoice;
+  onChoose: (choice: StringChoice) => void;
+  selected: boolean;
+}) {
+  const choose = useCallback(() => onChoose(choice), [choice, onChoose]);
+  return (
+    <button
+      aria-pressed={selected}
+      className={`flex-1 rounded-lg py-1.5 font-semibold text-sm transition-colors ${
+        selected ? "bg-foreground text-background" : "hover:bg-muted"
+      }`}
+      onClick={choose}
+      type="button"
+    >
+      {choice === "auto" ? "Auto" : String(choice)}
+    </button>
+  );
+}
+
+function TuningDisplay({
+  heard,
+  tuning,
+}: {
+  heard: Note | null;
+  tuning: StringTuning | null;
+}) {
+  if (!(tuning && heard)) {
     return (
-      <div className="flex h-36 items-center text-8xl text-muted-foreground/40">
-        –
+      <div className="flex h-44 flex-col items-center justify-center gap-2 text-center">
+        <span className="text-6xl text-muted-foreground/40">–</span>
+        <span className="text-muted-foreground">Play an open string</span>
       </div>
     );
   }
 
-  const [letter, accidental] = note.name;
+  const text = DIRECTION_TEXT[tuning.direction];
+  const inTune = tuning.direction === "in-tune";
   return (
-    <div className="flex h-36 items-center font-semibold">
-      <span className="text-9xl leading-none">{letter}</span>
-      <span className="flex flex-col justify-between self-stretch py-3 text-4xl">
-        <span>{accidental === "#" ? "♯" : ""}</span>
-        <span className="text-muted-foreground">{note.octave}</span>
+    <div className="flex h-44 flex-col items-center justify-center gap-1 text-center">
+      <span
+        className="font-semibold text-lg"
+        style={{ color: STRING_COLORS[tuning.string] }}
+      >
+        {tuning.string} string · target {tuning.targetName.replace("#", "♯")}
+      </span>
+      <span
+        className={`font-bold text-5xl ${inTune ? "text-emerald-600" : "text-amber-600"}`}
+      >
+        {text.arrow} {text.label}
+      </span>
+      <span className="font-medium tabular-nums">
+        {centsText(tuning.cents)}
+        {inTune ? "" : ` · ${text.hint}`}
+      </span>
+      <span className="text-muted-foreground text-sm tabular-nums">
+        Hearing {heard.name.replace("#", "♯")}
+        {heard.octave} · {heard.frequency.toFixed(1)} Hz
       </span>
     </div>
   );
 }
 
-function centsLabel(cents: number) {
-  const rounded = Math.round(cents);
-  if (rounded === 0) {
-    return "In tune";
-  }
-  const amount = Math.abs(rounded);
-  const unit = amount === 1 ? "cent" : "cents";
-  return `${amount} ${unit} ${rounded > 0 ? "sharp" : "flat"}`;
-}
-
 function CentsMeter({ cents }: { cents: number | null }) {
   const inTune = cents !== null && Math.abs(cents) <= IN_TUNE_CENTS;
   const offset = cents === null ? 0 : clamp(cents, -50, 50);
+  const pegged = cents !== null && Math.abs(cents) > 50;
 
   return (
     <div className="w-full">
@@ -95,41 +197,102 @@ function CentsMeter({ cents }: { cents: number | null }) {
             style={{ left: `${50 + tick}%` }}
           />
         ))}
-        {cents !== null && (
+        {cents === null ? null : (
           <div
-            className={`absolute inset-y-0 w-1.5 -translate-x-1/2 rounded-full transition-[left] duration-75 ${inTune ? "bg-emerald-500" : "bg-amber-500"}`}
+            className={`absolute inset-y-0 w-1.5 -translate-x-1/2 rounded-full transition-[left] duration-75 ${inTune ? "bg-emerald-500" : "bg-amber-500"} ${pegged ? "animate-pulse" : ""}`}
             style={{ left: `${50 + offset}%` }}
           />
         )}
       </div>
       <div className="mt-1 flex justify-between text-muted-foreground text-xs">
-        <span>♭ Flat</span>
-        <span>Sharp ♯</span>
+        <span>♭ Flat: tune up</span>
+        <span>Sharp: tune down ♯</span>
       </div>
     </div>
   );
 }
 
-function LevelMeter({ levelDb }: { levelDb: number }) {
-  const fraction = clamp((levelDb - LEVEL_FLOOR_DB) / -LEVEL_FLOOR_DB, 0, 1);
+function StringStatusRow({
+  statuses,
+}: {
+  statuses: Partial<Record<BassString, StringTuning>>;
+}) {
+  return (
+    <div className="grid w-full grid-cols-4 gap-2">
+      {STRINGS.map((string) => {
+        const status = statuses[string];
+        let mark = "–";
+        if (status) {
+          mark = DIRECTION_TEXT[status.direction].arrow;
+        }
+        return (
+          <div
+            className="flex flex-col items-center rounded-xl border py-2"
+            key={string}
+          >
+            <span
+              className="font-semibold"
+              style={{ color: STRING_COLORS[string] }}
+            >
+              {string}
+            </span>
+            <span
+              className={`text-xl ${status?.direction === "in-tune" ? "text-emerald-600" : ""}`}
+            >
+              {mark}
+            </span>
+            <span className="text-muted-foreground text-xs tabular-nums">
+              {status
+                ? `${Math.round(status.cents)}¢`
+                : midiToName(OPEN_STRING_MIDI[string])}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
+function Meter({
+  fraction,
+  label,
+  marker,
+  tone = "neutral",
+  value,
+}: {
+  fraction: number;
+  label: string;
+  marker?: number;
+  tone?: "bad" | "neutral";
+  value: string;
+}) {
   return (
     <div className="w-full">
       <div className="mb-1 flex justify-between text-muted-foreground text-xs">
-        <span>Input level</span>
-        <span className="tabular-nums">
-          {Number.isFinite(levelDb) ? `${Math.round(levelDb)} dB` : "–"}
-        </span>
+        <span>{label}</span>
+        <span className="tabular-nums">{value}</span>
       </div>
-      <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+      <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full bg-foreground/50"
-          style={{ width: `${fraction * 100}%` }}
+          className={`h-full ${tone === "bad" ? "bg-red-500" : "bg-foreground/50"}`}
+          style={{ width: `${clamp(fraction, 0, 1) * 100}%` }}
         />
+        {marker === undefined ? null : (
+          <div
+            className="absolute inset-y-0 w-0.5 bg-foreground"
+            style={{ left: `${marker * 100}%` }}
+          />
+        )}
       </div>
     </div>
   );
 }
+
+/** Buzz meter range, in dB: clean notes sit near the bottom. */
+const BUZZ_FLOOR_DB = -50;
+const BUZZ_CEILING_DB = -10;
+const buzzFraction = (db: number) =>
+  (db - BUZZ_FLOOR_DB) / (BUZZ_CEILING_DB - BUZZ_FLOOR_DB);
 
 function statusText(status: Status, testTone: TestTone | null) {
   switch (status.kind) {
@@ -144,19 +307,31 @@ function statusText(status: Status, testTone: TestTone | null) {
     case "listening":
       return testTone
         ? `Listening to the test tone: ${testTone.label}.`
-        : "Listening. Play one note at a time.";
+        : "Listening. Play one open string at a time.";
     default:
       return status.message;
   }
 }
 
-/** A chromatic tuner for bass, fed by the mic or by a ?tone= test tone. */
+/** A bass tuner: tells you which way to turn each string's peg. */
 export function Tuner() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [note, setNote] = useState<Note | null>(null);
   const [levelDb, setLevelDb] = useState(Number.NEGATIVE_INFINITY);
+  const [buzzDb, setBuzzDb] = useState<number | null>(null);
+  const [choice, setChoice] = useState<StringChoice>("auto");
+  const [statuses, setStatuses] = useState<
+    Partial<Record<BassString, StringTuning>>
+  >({});
   const [testTone, setTestTone] = useState<TestTone | null>(null);
   const stopRef = useRef<(() => Promise<void>) | null>(null);
+  // Read by the audio callback, which outlives any one render.
+  const choiceRef = useRef<StringChoice>("auto");
+
+  const choose = useCallback((next: StringChoice) => {
+    choiceRef.current = next;
+    setChoice(next);
+  }, []);
 
   // The address bar is only readable in the browser, after hydration.
   useEffect(() => {
@@ -170,6 +345,13 @@ export function Tuner() {
     []
   );
 
+  const tuning = note
+    ? tuneString(
+        note.frequency,
+        choice === "auto" ? nearestString(note.frequency) : choice
+      )
+    : null;
+
   const start = async () => {
     setStatus({ kind: "starting" });
     const tone = readTestTone();
@@ -181,13 +363,41 @@ export function Tuner() {
       : createMicrophoneSource();
 
     const smoother = createNoteSmoother();
+    const history = createAudioHistory(0.5);
+    const stopHistory = source.onFrame(history.push);
     const stopListening = detectNotes(source, {
       onReading: (reading) => {
-        setNote(smoother.update(reading));
+        const shown = smoother.update(reading);
+        setNote(shown);
+        if (shown) {
+          // Remember the latest reading for each string, for the status row.
+          const picked = choiceRef.current;
+          const heard = tuneString(
+            shown.frequency,
+            picked === "auto" ? nearestString(shown.frequency) : picked
+          );
+          setStatuses((previous) => ({ ...previous, [heard.string]: heard }));
+        }
         setLevelDb(reading.levelDb);
+        const samples = history.slice(reading.windowStart, reading.time);
+        if (reading.note && samples) {
+          const measured = measureBuzz(
+            samples,
+            history.sampleRate(),
+            reading.note.frequency
+          );
+          setBuzzDb((previous) =>
+            previous === null
+              ? measured
+              : previous + BUZZ_RESPONSE * (measured - previous)
+          );
+        } else if (!shown) {
+          setBuzzDb(null);
+        }
       },
     });
     const stopAll = async () => {
+      stopHistory();
       stopListening();
       await source.stop();
     };
@@ -208,25 +418,38 @@ export function Tuner() {
     stopRef.current = null;
     await stopAll?.();
     setNote(null);
+    setBuzzDb(null);
     setLevelDb(Number.NEGATIVE_INFINITY);
     setStatus({ kind: "idle" });
   };
 
   const listening = status.kind === "listening";
+  const buzzing = buzzDb !== null && buzzDb > TIMING.buzzThresholdDb;
+  let buzzValue = "–";
+  if (buzzDb !== null) {
+    buzzValue = `${buzzing ? "Buzzing" : "Clean"} · ${Math.round(buzzDb)} dB`;
+  }
 
   return (
     <section className="flex flex-col items-center gap-6 rounded-2xl border p-6 sm:p-8">
-      <NoteName note={note} />
-      <p
-        className={`h-6 font-medium tabular-nums ${note && Math.abs(note.cents) <= IN_TUNE_CENTS ? "text-emerald-600" : ""}`}
-      >
-        {note ? centsLabel(note.cents) : ""}
-      </p>
-      <CentsMeter cents={note?.cents ?? null} />
-      <p className="h-5 text-muted-foreground text-sm tabular-nums">
-        {note ? `${note.frequency.toFixed(1)} Hz` : ""}
-      </p>
-      <LevelMeter levelDb={levelDb} />
+      <StringPicker choice={choice} onChoose={choose} />
+      <TuningDisplay heard={note} tuning={tuning} />
+      <CentsMeter cents={tuning?.cents ?? null} />
+      <StringStatusRow statuses={statuses} />
+      <div className="flex w-full flex-col gap-3">
+        <Meter
+          fraction={(levelDb - LEVEL_FLOOR_DB) / -LEVEL_FLOOR_DB}
+          label="Input level"
+          value={Number.isFinite(levelDb) ? `${Math.round(levelDb)} dB` : "–"}
+        />
+        <Meter
+          fraction={buzzDb === null ? 0 : buzzFraction(buzzDb)}
+          label="Fret buzz (the line is where the game counts a miss)"
+          marker={buzzFraction(TIMING.buzzThresholdDb)}
+          tone={buzzing ? "bad" : "neutral"}
+          value={buzzValue}
+        />
+      </div>
       <Button
         className="w-full"
         disabled={status.kind === "starting"}

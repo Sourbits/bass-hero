@@ -1,6 +1,99 @@
 # Bass Hero notes
 
-## Latest: Guitar Hero highway, note sets, learning
+## Latest: string tuner, the Game tab, buzz detection
+
+On the `main-game` branch (from `note-highway`).
+
+### Tabs
+
+Every page now has a tab bar: **Game** (new, the main game), **Practice**
+(the old Play page: free play with note sets and a tempo slider), **Learn**,
+**Tuner** and **Calibrate**. The home page goes straight to Game.
+
+### Tuner: tune up or down, string by string
+
+- **Which string.** "Auto" picks the open string nearest the pitch you play.
+  Buttons E, A, D and G pick a string by hand, for one tuned more than about
+  2½ semitones off, which Auto could take for its neighbor.
+- **What it says.** It shows "↑ Tune up · Tighten the string" or "↓ Tune
+  down · Loosen the string", with the cents, measured against the string's
+  open note (E1, A1, D2, G2), not the nearest note. Within ±5 cents it says
+  "✓ In tune".
+- **All four strings.** A status row keeps the last reading for each string,
+  so you can see them all at once.
+- **Buzz meter.** It shows how buzzy the note sounds, with a line marking
+  where the game starts counting a miss. Use it to tune the threshold (see
+  Buzz).
+- Code: `src/pitch/string-tuning.ts`, tested.
+
+### Game: tiers and levels
+
+All the tuning values are in `src/config/difficulty.ts`.
+
+| Tier | Notes | Help | Tempo, level 1 → 10 | Notes per run |
+| --- | --- | --- | --- | --- |
+| Easy | E and A strings, frets 0–3, natural notes (6) | Fret numbers under notes, fretboard map | 60 → 75 BPM | 16 |
+| Medium | All 4 strings, frets 0–5, natural notes (16) | Fretboard map | 70 → 90 BPM | 20 |
+| Hard | All 4 strings, frets 0–12, all notes (52) | None by default: play from memory | 80 → 105 BPM | 24 |
+
+- **Levels move notes around more.** Distance on the neck = frets moved, plus
+  2 for each string crossed.
+  - Levels 1–2: neighboring notes only, and repeats are allowed.
+  - Levels 3–5: something new each note, still close by.
+  - Levels 6–10: every note must jump at least a growing minimum.
+  - Level 10: anywhere in the tier.
+  - Notes played less often are more likely, so a run covers the tier's neck.
+- **Help fades as tiers get harder:** fret hints on Easy, names only on
+  Medium, and on Hard the fretboard map is hidden too (an option brings it
+  back). Lanes a tier doesn't use are dimmed.
+- **Progress** is saved per browser: best hit rate, best score and stars for
+  each level. Stars come at 60%, 80% and 95% of notes hit (Perfect or Good).
+  All levels are open; "Next level" moves you on.
+- **Learning the sound.** The results list the notes you missed, with string,
+  fret, why (wrong note, buzzed, late…) and a "Hear it" button, plus a
+  fretboard of them to tap. An optional guide tone plays each note as it
+  reaches the ring. It's off by default because the mic hears it too, so use
+  headphones.
+- Code: `src/game/difficulty.ts`, `progress.ts` and `review.ts` (all tested),
+  and the page in `src/components/game/level-game.tsx`. Game and Practice
+  share the run logic in `use-game-run.ts`.
+
+### Buzz: a buzzing note counts as a Miss
+
+- **How it's measured** (`src/onset/buzz.ts`). The share of the note's energy
+  that's high-frequency rattle, in dB, in a window 25–105 ms after the pluck
+  (skipping the pluck's own bright click). "High" starts at 12× the note, or
+  1.5 kHz if that's higher, so the note's own harmonics don't count. A string
+  slapping a fret clicks every cycle, which shows up there.
+- **The threshold** is −22 dB, in `src/config/timing.ts` as
+  `buzzThresholdDb`. On generated notes:
+  - clean notes measure −46 to −37 dB for low notes, and up to about −27 dB
+    for bright high ones;
+  - strong buzz measures −21 to −13 dB.
+  - Low notes need more buzz to cross, because they click fewer times a
+    second.
+- **Needs tuning on a real bass.** The threshold is a guess until it's been
+  set against your bass, amp and mic. Play clean and deliberately buzzy notes
+  on the tuner and watch the buzz meter. If clean notes come close to the line,
+  lower `buzzThresholdDb` toward −15; if buzz slips under it, raise it toward
+  −28.
+- **Rules.** A buzzing right note is "Miss · Buzzing: fret it cleanly". If
+  it's also too early or late, that's what's shown instead. The game has an
+  option to switch buzz checking off.
+
+### What to test with your bass
+
+1. **Tuner.** Tune each string from well flat and well sharp. Check the arrow
+   and "Tune up/down" match, and Auto picks the right string. Then play a few
+   clean notes and a few buzzy ones (press lightly just behind the fret) and
+   note the buzz meter values.
+2. **Game, Easy 1.** Fret hints, then Easy 5 and 10 to feel the jumps grow.
+   Medium and Hard to check the notes spread over the neck.
+3. **Buzz rule.** Does a clean note ever come up "Buzzing"? Does a really
+   buzzy one get through? Tell me the meter readings and I'll set the
+   threshold.
+
+## Earlier: Guitar Hero highway, note sets, learning
 
 On the `note-highway` branch (from `timing-system`).
 

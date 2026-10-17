@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { LearnFretboard } from "@/components/learn-notes";
 import { STRING_COLORS } from "@/components/string-colors";
-import { STRINGS } from "@/game/positions";
+import { STRINGS } from "@/instrument/bass";
 
 export const metadata: Metadata = {
   description: "Where every note is on a bass, up to the 12th fret.",
@@ -11,14 +10,8 @@ export const metadata: Metadata = {
 
 export default function NotesPage() {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-10">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-8">
       <header className="flex flex-col gap-1">
-        <Link
-          className="text-muted-foreground text-sm hover:text-foreground"
-          href="/"
-        >
-          ← Bass Hero
-        </Link>
         <h1 className="font-semibold text-3xl">Learn the notes</h1>
         <p className="text-muted-foreground">
           Every note on a 4-string bass up to the 12th fret. Tap a note to hear

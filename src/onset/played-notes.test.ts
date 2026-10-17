@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { AudioClip } from "@/audio/audio-source";
 import { createSampleSource } from "@/audio/sample-source";
 import { generatePlucks } from "@/audio/tones";
+import { TIMING } from "@/config/timing";
 import { midiToFrequency, parseNote } from "@/pitch/notes";
 import { detectPlayedNotes, type PlayedNote } from "./played-notes";
 
@@ -96,5 +97,36 @@ describe("detectPlayedNotes", () => {
     const played = await playedNotes(clip);
 
     expect(played.map(label)).toEqual([null, "D2"]);
+  });
+
+  test("measures buzz on each named note", async () => {
+    const clip = generatePlucks(
+      [
+        { frequency: frequencyOf("A1"), time: 0.3 },
+        { buzz: 0.4, frequency: frequencyOf("A1"), time: 0.9 },
+      ],
+      {
+        duration: 1.5,
+        harmonics: BASS_HARMONICS,
+        noise: 0.003,
+        sampleRate: 48_000,
+      }
+    );
+
+    const [clean, buzzy] = await playedNotes(clip);
+
+    expect(clean?.buzzDb).toBeLessThan(TIMING.buzzThresholdDb);
+    expect(buzzy?.buzzDb).toBeGreaterThan(TIMING.buzzThresholdDb);
+  });
+
+  test("has no buzz reading for a pluck with no note", async () => {
+    const samples = new Float32Array(48_000);
+    for (let index = 0; index < 48; index += 1) {
+      samples[12_000 + index] = index % 2 === 0 ? 0.5 : -0.5;
+    }
+
+    const [played] = await playedNotes({ sampleRate: 48_000, samples });
+
+    expect(played?.buzzDb).toBeNull();
   });
 });

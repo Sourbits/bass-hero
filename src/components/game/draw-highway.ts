@@ -1,10 +1,12 @@
 import { STRING_COLORS } from "@/components/string-colors";
 import { type HighwayGeometry, laneX, projectNote } from "@/game/layout";
-import { type BassString, STRINGS } from "@/game/positions";
+import { type BassString, STRINGS } from "@/instrument/bass";
 
 /** One note on the highway, as the drawing needs it. */
 export interface HighwayGem {
   color: string;
+  /** A small hint under the note, such as "fret 3". */
+  hint?: string;
   key: string;
   /** Big text on the note, such as "F" or a beat number. */
   label: string;
@@ -21,6 +23,7 @@ const SURFACE = "#18181b";
 const LANE_LINE = "#3f3f46";
 const MISSED = "#71717a";
 const BURST_MS = 320;
+const ALL_LANES: ReadonlySet<BassString> = new Set(STRINGS);
 
 /** Scale at a given height on screen: the inverse of projectNote's y. */
 function scaleAtY(y: number, { farScale, farY, strikeY }: HighwayGeometry) {
@@ -38,7 +41,8 @@ export function splitNoteName(name: string) {
 function drawSurface(
   context: CanvasRenderingContext2D,
   geometry: HighwayGeometry,
-  showLanes: boolean
+  showLanes: boolean,
+  activeLanes: ReadonlySet<BassString>
 ) {
   const { centerX, farScale, farY, halfWidth, height } = geometry;
   const bottomScale = scaleAtY(height, geometry);
@@ -57,7 +61,7 @@ function drawSurface(
   const laneWidth = (2 * halfWidth) / STRINGS.length;
   for (const [index, string] of STRINGS.entries()) {
     const left = -halfWidth + laneWidth * index;
-    if (showLanes) {
+    if (showLanes && activeLanes.has(string)) {
       context.fillStyle = `${STRING_COLORS[string]}22`;
       context.beginPath();
       context.moveTo(centerX + left * farScale, farY);
@@ -108,8 +112,7 @@ function drawBeatLines(
 function drawStrikeLine(
   context: CanvasRenderingContext2D,
   geometry: HighwayGeometry,
-  showLanes: boolean,
-  fontFamily: string
+  { activeLanes, fontFamily, showLanes }: StrikeOptions
 ) {
   const { centerX, halfWidth, radius, strikeY } = geometry;
   context.strokeStyle = "rgba(255, 255, 255, 0.55)";
@@ -126,8 +129,10 @@ function drawStrikeLine(
   context.textBaseline = "middle";
   for (const string of STRINGS) {
     const x = laneX(string, 1, geometry);
-    context.fillStyle = `${STRING_COLORS[string]}40`;
-    context.strokeStyle = "#ffffff";
+    // Lanes this run doesn't use are drawn dim, so the eye stays on the others.
+    const active = activeLanes.has(string);
+    context.fillStyle = active ? `${STRING_COLORS[string]}40` : "transparent";
+    context.strokeStyle = active ? "#ffffff" : LANE_LINE;
     context.lineWidth = 3;
     context.beginPath();
     context.arc(x, strikeY, radius, 0, Math.PI * 2);
@@ -135,7 +140,7 @@ function drawStrikeLine(
     context.stroke();
 
     const laneWidth = (2 * geometry.halfWidth) / STRINGS.length;
-    context.fillStyle = "#a1a1aa";
+    context.fillStyle = active ? "#a1a1aa" : "#52525b";
     context.font = `600 13px ${fontFamily}`;
     context.fillText(
       laneWidth >= 100 ? `${string} string` : string,
@@ -203,6 +208,13 @@ function drawGem(
     context.fill();
     context.stroke();
     drawLabel(context, gem, x, y, radius * 1.05, fontFamily);
+    if (gem.hint && scale > 0.45) {
+      context.fillStyle = "#e4e4e7";
+      context.textAlign = "center";
+      context.textBaseline = "top";
+      context.font = `600 ${Math.round(12 * scale)}px ${fontFamily}`;
+      context.fillText(gem.hint, x, y + radius + 3 * scale);
+    }
   } else {
     const half = geometry.halfWidth * scale * 0.94;
     context.beginPath();
@@ -281,7 +293,15 @@ function drawGems(
   }
 }
 
+interface StrikeOptions {
+  activeLanes: ReadonlySet<BassString>;
+  fontFamily: string;
+  showLanes: boolean;
+}
+
 export interface DrawOptions {
+  /** Lanes in use; the others are drawn dim. Defaults to all four. */
+  activeLanes?: ReadonlySet<BassString>;
   beatTimesMs: number[];
   /** When each hit note was first seen as hit, to time its burst. */
   burstStarts: Map<string, number>;
@@ -296,14 +316,22 @@ export interface DrawOptions {
 export function drawHighway(
   context: CanvasRenderingContext2D,
   geometry: HighwayGeometry,
-  { beatTimesMs, burstStarts, fontFamily, gems, nowMs, showLanes }: DrawOptions
+  {
+    activeLanes = ALL_LANES,
+    beatTimesMs,
+    burstStarts,
+    fontFamily,
+    gems,
+    nowMs,
+    showLanes,
+  }: DrawOptions
 ) {
   context.clearRect(0, 0, geometry.width, geometry.height);
-  drawSurface(context, geometry, showLanes);
+  drawSurface(context, geometry, showLanes, activeLanes);
   if (nowMs !== null) {
     drawBeatLines(context, geometry, beatTimesMs, nowMs);
   }
-  drawStrikeLine(context, geometry, showLanes, fontFamily);
+  drawStrikeLine(context, geometry, { activeLanes, fontFamily, showLanes });
   if (nowMs !== null) {
     drawGems(context, geometry, { burstStarts, fontFamily, gems, nowMs });
   }

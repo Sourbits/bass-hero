@@ -24,7 +24,9 @@ export function describeJudgment({
   reason,
 }: Judgment) {
   let detail = "";
-  if (reason === "wrong-note" && playedMidi !== null) {
+  if (reason === "buzz") {
+    detail = "Buzzing: fret it cleanly";
+  } else if (reason === "wrong-note" && playedMidi !== null) {
     detail = `Wrong note: ${midiToName(playedMidi)}`;
   } else if (reason === "not-played" || offsetMs === null) {
     detail = "Not played";

@@ -1,50 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { playNote } from "@/audio/play-note";
-import { describeAudioError } from "@/components/audio-errors";
 import { Fretboard } from "@/components/fretboard";
-import {
-  type AudioSession,
-  isDemoMode,
-  startAudioSession,
-} from "@/components/game/audio-session";
-import { type HighwayGem, splitNoteName } from "@/components/game/draw-highway";
-import {
-  type HighwayFeedback,
-  NoteHighway,
-} from "@/components/game/note-highway";
-import { STRING_COLORS } from "@/components/string-colors";
+import { isDemoMode } from "@/components/game/audio-session";
+import { beatTimes, ScoreBar, toGems } from "@/components/game/game-parts";
+import { NoteHighway } from "@/components/game/note-highway";
+import { type RunPhase, useGameRun } from "@/components/game/use-game-run";
 import { Button } from "@/components/ui/button";
-import { type ScheduledNote, scheduleChart } from "@/game/chart";
-import { demoPerformance } from "@/game/demo";
 import {
   CUSTOM_SET_ID,
   generateChart,
   NOTE_SETS,
   type NoteSet,
 } from "@/game/note-sets";
-import {
-  type Position,
-  positionKey,
-  positionMidi,
-  STRINGS,
-} from "@/game/positions";
+import { type Position, positionKey, positionMidi } from "@/game/positions";
 import { loadPractice, savePractice } from "@/game/practice-setting";
 import { type ScoreSummary, summarize } from "@/game/score";
 import { loadTempo, saveTempo, TEMPO } from "@/game/tempo-setting";
-import { detectPlayedNotes } from "@/onset/played-notes";
-import { describeJudgment, describeOffset } from "@/timing/describe";
-import { createJudge, type Judge, type Judgment } from "@/timing/judge";
+import { STRINGS } from "@/instrument/bass";
+import { describeOffset } from "@/timing/describe";
 import { loadLatencyOffset } from "@/timing/latency-setting";
-
-/** Time from pressing Start to the first note's target, in ms. */
-const LEAD_IN_MS = 3000;
-/** How long to keep the screen running after the last note, in ms. */
-const OUTRO_MS = 1500;
-
-type Phase = "error" | "finished" | "idle" | "playing" | "starting";
 
 /** Every position up to the 12th fret, for the custom picker. */
 const ALL_POSITIONS: Position[] = STRINGS.flatMap((string) =>
@@ -62,86 +39,14 @@ function customSet(keys: Set<string>): NoteSet {
   };
 }
 
-function toGems(
-  notes: ScheduledNote[],
-  judgments: (Judgment | undefined)[]
-): HighwayGem[] {
-  return notes.map((note, index) => {
-    const judgment = judgments[index];
-    let state: HighwayGem["state"] = "upcoming";
-    if (judgment) {
-      state = judgment.rating === "miss" ? "missed" : "hit";
-    }
-    return {
-      color: STRING_COLORS[note.string],
-      key: String(index),
-      lane: note.string,
-      state,
-      targetMs: note.targetMs,
-      ...splitNoteName(note.name),
-    };
-  });
-}
-
-function beatTimes(notes: ScheduledNote[], bpm: number) {
-  const [first] = notes;
-  const last = notes.at(-1);
-  if (!(first && last)) {
-    return [];
-  }
-  const beatMs = 60_000 / bpm;
-  const startMs = first.targetMs - first.beat * beatMs;
-  return Array.from(
-    { length: Math.floor(last.beat) + 2 },
-    (_, beat) => startMs + beat * beatMs
-  );
-}
-
-function toFeedback(
-  judgment: Judgment,
-  notes: ScheduledNote[]
-): HighwayFeedback {
-  const { detail, label } = describeJudgment(judgment);
-  return {
-    detail,
-    key: `${judgment.index}-${judgment.rating}`,
-    label,
-    lane: notes[judgment.index]?.string ?? null,
-    tone: judgment.rating,
-  };
-}
-
-function Stat({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="font-semibold text-xl tabular-nums sm:text-2xl">
-        {value}
-      </span>
-      <span className="text-muted-foreground text-xs">{label}</span>
-    </div>
-  );
-}
-
 /** The test game: play notes as they come down the highway. */
 export function PlayGame() {
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [error, setError] = useState("");
+  const run = useGameRun();
   const [bpm, setBpm] = useState(TEMPO.default);
   const [latencyOffsetMs, setLatencyOffsetMs] = useState(0);
   const [demo, setDemo] = useState(false);
-  const [notes, setNotes] = useState<ScheduledNote[]>([]);
-  const [judgments, setJudgments] = useState<(Judgment | undefined)[]>([]);
-  const [feedback, setFeedback] = useState<HighwayFeedback | null>(null);
-  const [getNow, setGetNow] = useState<(() => number) | null>(null);
   const [setId, setSetId] = useState(NOTE_SETS[0]?.id ?? "");
   const [customKeys, setCustomKeys] = useState<Set<string>>(new Set());
-
-  const sessionRef = useRef<AudioSession | null>(null);
-  const judgeRef = useRef<Judge | null>(null);
-  const notesRef = useRef<ScheduledNote[]>([]);
-  const endsAtRef = useRef(0);
-  /** How far the audio has been analyzed, on the game clock, in ms. */
-  const analyzedMsRef = useRef(0);
 
   // Settings live in the browser, so read them after hydration.
   useEffect(() => {
@@ -158,109 +63,11 @@ export function PlayGame() {
       ? customSet(customKeys)
       : (NOTE_SETS.find((set) => set.id === setId) ?? NOTE_SETS[0]);
 
-  const stopAudio = useCallback(async () => {
-    const session = sessionRef.current;
-    sessionRef.current = null;
-    setGetNow(null);
-    await session?.stop();
-  }, []);
-
-  useEffect(
-    () => () => {
-      stopAudio().catch(() => undefined);
-    },
-    [stopAudio]
-  );
-
-  const show = useCallback((judge: Judge, latest: Judgment) => {
-    setJudgments(judge.judgments());
-    setFeedback(toFeedback(latest, notesRef.current));
-  }, []);
-
-  const start = async () => {
-    setPhase("starting");
-    setError("");
-    setJudgments([]);
-    setFeedback(null);
-    judgeRef.current = null;
-    analyzedMsRef.current = 0;
-    const demoMode = isDemoMode();
-
-    try {
-      const session = await startAudioSession({
-        demo: demoMode,
-        listen: (source) =>
-          detectPlayedNotes(source, {
-            onNote: ({ note, onsetMs }) => {
-              const judge = judgeRef.current;
-              const judgment = judge?.judgeHit({
-                midi: note?.midi ?? null,
-                onsetMs,
-              });
-              if (judge && judgment) {
-                show(judge, judgment);
-              }
-            },
-            onReading: ({ time }) => {
-              analyzedMsRef.current = time * 1000;
-            },
-          }),
-      });
-      sessionRef.current = session;
-
-      const chart =
-        noteSet?.fixedChart ?? generateChart(noteSet?.positions ?? []);
-      const scheduled = scheduleChart(chart, {
-        bpm,
-        startMs: session.clock.now() + LEAD_IN_MS,
-      });
-      notesRef.current = scheduled;
-      // The demo plays with no latency, so it needs no calibration offset.
-      judgeRef.current = createJudge(scheduled, {
-        latencyOffsetMs: demoMode ? 0 : loadLatencyOffset(),
-      });
-      endsAtRef.current = (scheduled.at(-1)?.targetMs ?? 0) + OUTRO_MS;
-      session.schedulePlucks?.(demoPerformance(scheduled));
-
-      setNotes(scheduled);
-      setGetNow(() => session.clock.now);
-      setPhase("playing");
-    } catch (startError) {
-      await stopAudio();
-      setError(describeAudioError(startError));
-      setPhase("error");
-    }
-  };
-
-  const onFrame = useCallback(
-    (nowMs: number) => {
-      const judge = judgeRef.current;
-      if (!judge) {
-        return;
-      }
-      // Only call a note unplayed once the audio after it has been analyzed.
-      // If the page falls behind (a busy or background tab), plucks arrive
-      // late, and going by the clock alone would miss notes that were played.
-      const closed = judge.closeWindows(Math.min(nowMs, analyzedMsRef.current));
-      const latest = closed.at(-1);
-      if (latest) {
-        show(judge, latest);
-      }
-      if (judge.isComplete() && nowMs > endsAtRef.current) {
-        judgeRef.current = null;
-        setPhase("finished");
-        stopAudio().catch(() => undefined);
-      }
-    },
-    [show, stopAudio]
-  );
-
-  const stop = async () => {
-    judgeRef.current = null;
-    await stopAudio();
-    setPhase("idle");
-    setFeedback(null);
-  };
+  const start = () =>
+    run.start({
+      bpm,
+      chart: noteSet?.fixedChart ?? generateChart(noteSet?.positions ?? []),
+    });
 
   const changeTempo = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -299,8 +106,9 @@ export function PlayGame() {
     [customKeys, setId]
   );
 
+  const { error, feedback, getNow, judgments, notes, onFrame, phase, playing } =
+    run;
   const summary = summarize(judgments);
-  const playing = phase === "playing" || phase === "starting";
   const positions = noteSet?.positions ?? [];
   let buttonLabel = phase === "finished" ? "Play again" : "Start";
   if (playing) {
@@ -321,19 +129,14 @@ export function PlayGame() {
       />
 
       <NoteHighway
-        beatTimesMs={beatTimes(notes, bpm)}
+        beatTimesMs={beatTimes(notes, run.bpm)}
         feedback={feedback}
         gems={toGems(notes, judgments)}
         getNow={getNow}
         onFrame={onFrame}
       />
 
-      <div className="grid grid-cols-4 gap-2 rounded-2xl border p-4">
-        <Stat label="Score" value={summary.score.toLocaleString("en-US")} />
-        <Stat label="Perfect" value={summary.counts.perfect} />
-        <Stat label="Good" value={summary.counts.good} />
-        <Stat label="Miss" value={summary.counts.miss} />
-      </div>
+      <ScoreBar summary={summary} />
 
       {phase === "finished" ? (
         <RunSummary demo={demo} summary={summary} total={notes.length} />
@@ -342,7 +145,7 @@ export function PlayGame() {
       <Button
         className="w-full"
         disabled={phase === "starting" || positions.length === 0}
-        onClick={playing ? stop : start}
+        onClick={playing ? run.stop : start}
         size="lg"
         variant={playing ? "outline" : "default"}
       >
@@ -364,7 +167,7 @@ export function PlayGame() {
   );
 }
 
-function statusText(phase: Phase, error: string, noteCount: number) {
+function statusText(phase: RunPhase, error: string, noteCount: number) {
   if (phase === "error") {
     return error;
   }

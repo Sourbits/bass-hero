@@ -4,6 +4,14 @@
  */
 
 export interface TimingConfig {
+  /**
+   * A right note buzzier than this counts as a Miss ("Buzzing"), in dB. See
+   * measureBuzz: clean notes measure about −35 dB or lower, strong fret buzz
+   * about −20 dB or higher. The tuner shows this number live, to tune it.
+   */
+  buzzThresholdDb: number;
+  /** Whether a buzzing note counts as a Miss at all. */
+  countBuzz: boolean;
   /** Default calibration offset before you've calibrated. */
   defaultLatencyOffsetMs: number;
   /** A right note within this many ms of its target (either side) is Good. */
@@ -28,6 +36,8 @@ export interface TimingConfig {
 }
 
 export const TIMING: TimingConfig = {
+  buzzThresholdDb: -22,
+  countBuzz: true,
   defaultLatencyOffsetMs: 0,
   goodWindowMs: 120,
   identifyGraceMs: 300,

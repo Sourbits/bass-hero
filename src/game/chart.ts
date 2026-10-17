@@ -1,11 +1,7 @@
+import { type BassString, OPEN_STRING_MIDI } from "@/instrument/bass";
 import { parseNote } from "@/pitch/notes";
 import type { ExpectedNote } from "@/timing/judge";
-import {
-  type BassString,
-  defaultPosition,
-  OPEN_STRING_MIDI,
-  type Position,
-} from "./positions";
+import { defaultPosition, type Position } from "./positions";
 
 export interface ChartNote {
   /** When to play it, in beats from the start of the chart. */

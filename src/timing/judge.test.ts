@@ -215,3 +215,51 @@ describe("createJudge with a calibration offset", () => {
     expect(judge.closeWindows(closesAt + 101)).toHaveLength(1);
   });
 });
+
+describe("createJudge with fret buzz", () => {
+  const buzzy = TIMING.buzzThresholdDb + 5;
+  const clean = TIMING.buzzThresholdDb - 15;
+
+  test("a right note that buzzes is a Miss", () => {
+    const judgment = createJudge(CHART).judgeHit({
+      buzzDb: buzzy,
+      midi: midi("E1"),
+      onsetMs: 1010,
+    });
+
+    expect(judgment).toMatchObject({
+      offsetMs: 10,
+      rating: "miss",
+      reason: "buzz",
+    });
+  });
+
+  test("a clean note, or one with no measurement, is judged as usual", () => {
+    for (const buzzDb of [clean, null, undefined]) {
+      expect(
+        createJudge(CHART).judgeHit({ buzzDb, midi: midi("E1"), onsetMs: 1010 })
+          ?.rating
+      ).toBe("perfect");
+    }
+  });
+
+  test("can be switched off", () => {
+    const judge = createJudge(CHART, {
+      config: { ...TIMING, countBuzz: false },
+    });
+
+    expect(
+      judge.judgeHit({ buzzDb: buzzy, midi: midi("E1"), onsetMs: 1010 })?.rating
+    ).toBe("perfect");
+  });
+
+  test("a buzzing note that's also too late is still marked late", () => {
+    expect(
+      createJudge(CHART).judgeHit({
+        buzzDb: buzzy,
+        midi: midi("E1"),
+        onsetMs: 1180,
+      })?.reason
+    ).toBe("late");
+  });
+});

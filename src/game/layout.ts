@@ -1,4 +1,4 @@
-import { type BassString, STRINGS } from "./positions";
+import { type BassString, STRINGS } from "@/instrument/bass";
 
 /**
  * A highway seen in perspective, Guitar Hero style: notes appear small at the

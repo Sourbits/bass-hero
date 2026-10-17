@@ -8,6 +8,8 @@ export interface ExpectedNote {
 
 /** A pluck to judge, on the game clock. A null midi means no clear pitch. */
 export interface Hit {
+  /** How buzzy the note sounded, in dB (see measureBuzz), if measured. */
+  buzzDb?: number | null;
   midi: number | null;
   onsetMs: number;
 }
@@ -15,7 +17,12 @@ export interface Hit {
 export type Rating = "good" | "miss" | "perfect";
 
 /** Why a note was missed. */
-export type MissReason = "early" | "late" | "not-played" | "wrong-note";
+export type MissReason =
+  | "buzz"
+  | "early"
+  | "late"
+  | "not-played"
+  | "wrong-note";
 
 export interface Judgment {
   /** Position of the note in the chart. */
@@ -66,6 +73,7 @@ function samePitch(expected: number, played: number, ignoreOctave: boolean) {
  *
  * - A right note within the Perfect or Good window gets that rating. Within
  *   the Miss window, it's a Miss marked early or late.
+ * - A right note that buzzes (see TimingConfig.buzzThresholdDb) is a Miss.
  * - A wrong note within the Good window of a note is a Miss for that note.
  * - A note nobody played is a Miss once its window has closed.
  * - Plucks with no clear pitch, or nowhere near a note, are ignored.
@@ -142,17 +150,25 @@ export function createJudge(
     isComplete: () => judgments.every(Boolean),
 
     /** Judges one pluck. Returns null if it was ignored. */
-    judgeHit: ({ midi, onsetMs }: Hit): Judgment | null => {
+    judgeHit: ({ buzzDb, midi, onsetMs }: Hit): Judgment | null => {
       if (midi === null) {
         return null;
       }
       const { match, wrong } = findNotes(midi, onsetMs - latencyOffsetMs);
       if (match) {
+        const rated = rateOffset(match.offset, config);
+        const buzzing =
+          config.countBuzz &&
+          buzzDb !== null &&
+          buzzDb !== undefined &&
+          buzzDb > config.buzzThresholdDb;
         return record({
           index: match.index,
           offsetMs: match.offset,
           playedMidi: midi,
-          ...rateOffset(match.offset, config),
+          ...(buzzing && rated.rating !== "miss"
+            ? { rating: "miss", reason: "buzz" }
+            : rated),
         });
       }
       if (wrong) {
