@@ -7,11 +7,11 @@ import {
   isDemoMode,
   startAudioSession,
 } from "@/components/game/audio-session";
+import type { HighwayGem } from "@/components/game/draw-highway";
 import {
-  Highway,
   type HighwayFeedback,
-  type HighwayNote,
-} from "@/components/game/highway";
+  NoteHighway,
+} from "@/components/game/note-highway";
 import { Button } from "@/components/ui/button";
 import { CALIBRATION } from "@/config/timing";
 import type { DemoPluck } from "@/game/demo";
@@ -120,6 +120,7 @@ export function Calibration() {
       detail: beat.countIn ? "Count-in" : `Beat ${beat.label}`,
       key: String(timeMs),
       label: describeOffset(timeMs - beat.targetMs),
+      lane: null,
       tone: "neutral",
     });
   };
@@ -220,21 +221,25 @@ export function Calibration() {
       setManualOffset(event.target.value),
     []
   );
-  const highwayNotes: HighwayNote[] = beats.map((beat, index) => ({
-    color: beat.countIn ? "#a1a1aa" : "#4f46e5",
+  const highwayGems: HighwayGem[] = beats.map((beat, index) => ({
+    color: beat.countIn ? "#52525b" : "#4f46e5",
     key: String(index),
     label: beat.label,
+    lane: null,
+    small: "",
     state: heardBeats.has(index) ? "hit" : "upcoming",
     targetMs: beat.targetMs,
   }));
 
   return (
     <div className="flex flex-col gap-6">
-      <Highway
+      <NoteHighway
+        beatTimesMs={beats.map((beat) => beat.targetMs)}
         feedback={feedback}
+        gems={highwayGems}
         getNow={getNow}
-        notes={highwayNotes}
         onFrame={onFrame}
+        showLanes={false}
       />
 
       <Button

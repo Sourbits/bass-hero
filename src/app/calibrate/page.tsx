@@ -20,7 +20,7 @@ export default function CalibratePage() {
         </Link>
         <h1 className="font-semibold text-3xl">Calibrate</h1>
         <p className="text-muted-foreground">
-          Pluck any open string each time a circle reaches the outline: a
+          Pluck any open string each time a bar reaches the strike line: a
           count-in of {CALIBRATION.countInBeats}, then {CALIBRATION.beats} beats
           at {CALIBRATION.bpm} BPM. It measures how late your setup hears you
           and suggests an offset for the game.

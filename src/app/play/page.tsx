@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PlayGame } from "@/components/game/play-game";
 
 export const metadata: Metadata = {
-  description: "Play bass notes in time with circles sliding to a target.",
+  description: "Play bass notes in time as they come down the highway.",
   title: "Play | Bass Hero",
 };
 
@@ -17,10 +17,10 @@ export default function PlayPage() {
         >
           ← Bass Hero
         </Link>
-        <h1 className="font-semibold text-3xl">Warm-up</h1>
+        <h1 className="font-semibold text-3xl">Play</h1>
         <p className="text-muted-foreground">
-          16 notes on the open strings and the 3rd fret. Play each one as its
-          circle reaches the outline.
+          Notes come toward you, one lane per string: E, A, D, G from left to
+          right. Play each one as it reaches the ring at the bottom.
         </p>
       </header>
       <PlayGame />

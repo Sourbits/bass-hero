@@ -1,5 +1,39 @@
 # Bass Hero notes
 
+## Latest: Guitar Hero highway, note sets, learning
+
+On the `note-highway` branch (from `timing-system`).
+
+- **Highway.** Notes come toward you down a perspective highway, one lane per
+  string (E, A, D, G from left to right, thickest to thinnest), and hit a
+  ring per lane at the bottom. Each note's position comes from
+  `projectNote()` in `src/game/layout.ts`. At its target time a note is
+  exactly on the strike line at full size (unit-tested). Notes speed up as
+  they come closer, as in real perspective. They take 2.5 s from the far end
+  to the strike line. Drawn on a canvas (`src/components/game/draw-highway.ts`)
+  with upright, high-contrast labels. Feedback appears under the rings, so it
+  never covers incoming notes.
+- **Note sets** (`src/game/note-sets.ts`). Pick which notes appear: the
+  warm-up song, open strings, natural notes on the E and A strings or on the
+  D and G strings, first-position naturals, first position with sharps, or
+  Custom, where you tap notes on a fretboard. Every set except the song
+  generates a new 16-note run each time; the same note never comes three
+  times in a row. The choice is saved per browser.
+- **Legend.** Under the game, a fretboard shows where the set's notes are,
+  colored like their lanes. Tap a note to hear it; in Custom, tapping picks
+  notes instead. `/notes` ("Learn the notes") shows the whole neck to the
+  12th fret: naturals are solid, sharps are outlined, and tapping plays the
+  note. It also has a short guide to note names, sharps and octaves.
+- **Calibration** uses the same highway, with full-width bars, since any
+  string will do.
+- **Robustness fix.** Notes are only called "Not played" once the audio
+  after them has been analyzed, not just when the clock passes. In a busy or
+  background tab, plucks can reach the page late. Going by the clock alone,
+  a demo run in a hidden browser pane once scored 13 misses.
+- **Open question.** I read "pick what notes can be shown" as which notes
+  appear in a run. If you meant what's written on each note (note name, fret
+  number, or nothing, as a quiz), that's a small addition.
+
 ## Summary: timing system
 
 Everything from this run is on the `timing-system` branch, branched from

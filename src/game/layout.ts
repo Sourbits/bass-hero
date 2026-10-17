@@ -1,40 +1,90 @@
-export interface HighwayLayout {
-  /** How long a circle takes to slide from the right edge to the target, in ms. */
+import { type BassString, STRINGS } from "./positions";
+
+/**
+ * A highway seen in perspective, Guitar Hero style: notes appear small at the
+ * far end and come toward you, one lane per string (E, A, D, G from left to
+ * right), until they reach the strike line near the bottom.
+ */
+export interface HighwayGeometry {
+  /** How long a note takes from the far end to the strike line, in ms. */
   approachMs: number;
-  /** Circle radius, in px. */
+  centerX: number;
+  /** Size of things at the far end, relative to the strike line. */
+  farScale: number;
+  /** Where the far end of the highway is drawn, in px from the top. */
+  farY: number;
+  /** Half the highway's width at the strike line, in px. */
+  halfWidth: number;
+  height: number;
+  /** Radius of a note at the strike line, in px. */
   radius: number;
-  /** Center of the target outline, in px from the left edge. */
-  targetX: number;
-  /** Width of the highway, in px. */
+  /** Where the strike line is drawn, in px from the top. */
+  strikeY: number;
   width: number;
 }
 
-/** Circle radius in px. */
-export const CIRCLE_RADIUS = 28;
-/** Time on screen before reaching the target, in ms. */
-export const APPROACH_MS = 2000;
+/** Time on screen before reaching the strike line, in ms. */
+export const APPROACH_MS = 2500;
+const FAR_SCALE = 0.25;
+const MAX_HALF_WIDTH = 260;
+const MAX_RADIUS = 34;
+/** Room under the strike line for string names and hit feedback, in px. */
+const BOTTOM_SPACE = 112;
 
-/** The layout for a highway of this width: target outline near the left. */
-export function highwayLayout(width: number): HighwayLayout {
+/** The highway for a drawing area of this size. */
+export function highwayGeometry(
+  width: number,
+  height: number
+): HighwayGeometry {
+  const halfWidth = Math.min(width * 0.46, MAX_HALF_WIDTH);
+  const laneWidth = (2 * halfWidth) / STRINGS.length;
   return {
     approachMs: APPROACH_MS,
-    radius: CIRCLE_RADIUS,
-    targetX: Math.max(2 * CIRCLE_RADIUS, Math.round(width * 0.18)),
+    centerX: width / 2,
+    farScale: FAR_SCALE,
+    farY: 16,
+    halfWidth,
+    height,
+    radius: Math.min(laneWidth * 0.38, MAX_RADIUS),
+    strikeY: height - BOTTOM_SPACE,
     width,
   };
 }
 
+export interface Projection {
+  /** Size relative to the strike line: 1 on it, smaller further away. */
+  scale: number;
+  /** Vertical position, in px from the top. */
+  y: number;
+}
+
 /**
- * Where a circle's center is at `nowMs`. It moves right to left at a steady
- * speed: one approach time before its target it's just off the right edge,
- * and at its target time it's exactly on the target outline. After that it
- * keeps going left.
+ * Where a note is at `nowMs`, in true perspective: it starts at the far end
+ * one approach time before its target, speeds up as it comes closer, and is
+ * exactly on the strike line, at full size, at its target time. After that it
+ * keeps coming toward you, past the strike line.
  */
-export function circleX(
+export function projectNote(
   targetMs: number,
   nowMs: number,
-  { approachMs, radius, targetX, width }: HighwayLayout
+  { approachMs, farScale, farY, strikeY }: HighwayGeometry
+): Projection {
+  // Depth: 0 at the strike line, 1 at the far end. Size falls off as
+  // 1 / (1 + k·depth), with k chosen so the far end is farScale.
+  const k = 1 / farScale - 1;
+  const depth = Math.max((targetMs - nowMs) / approachMs, -0.5 / k);
+  const scale = 1 / (1 + k * depth);
+  const y = strikeY - ((strikeY - farY) * (1 - scale)) / (1 - farScale);
+  return { scale, y };
+}
+
+/** Center of a string's lane at a given perspective scale, in px. */
+export function laneX(
+  string: BassString,
+  scale: number,
+  { centerX, halfWidth }: HighwayGeometry
 ) {
-  const spawnX = width + radius;
-  return targetX + ((targetMs - nowMs) / approachMs) * (spawnX - targetX);
+  const laneWidth = (2 * halfWidth) / STRINGS.length;
+  const offset = -halfWidth + laneWidth * (STRINGS.indexOf(string) + 0.5);
+  return centerX + offset * scale;
 }
