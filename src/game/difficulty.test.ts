@@ -3,27 +3,32 @@ import { TIER_ORDER, TIERS, type TierId } from "@/config/difficulty";
 import { scheduleChart } from "./chart";
 import {
   generateLevelChart,
+  type Level,
   levelSettings,
   neckDistance,
+  notesPerMinute,
   starsFor,
   tierPositions,
 } from "./difficulty";
 import { positionKey, positionName } from "./positions";
 
 const LEVELS = Array.from({ length: 10 }, (_, index) => index + 1);
+const EVERY_LEVEL: Level[] = TIER_ORDER.flatMap((tier) =>
+  LEVELS.map((level) => ({ level, tier }))
+);
 
-function runOf(tier: TierId, level: number, seed: number) {
-  return scheduleChart(generateLevelChart({ level, tier }, { seed }), {
+function runOf(level: Level, seed: number) {
+  return scheduleChart(generateLevelChart(level, { seed }), {
     bpm: 60,
     startMs: 0,
   });
 }
 
-function averageJump(tier: TierId, level: number) {
+function averageJump(level: Level) {
   let total = 0;
   let count = 0;
   for (let seed = 1; seed <= 20; seed += 1) {
-    const notes = runOf(tier, level, seed);
+    const notes = runOf(level, seed);
     for (let index = 1; index < notes.length; index += 1) {
       const [before, after] = [notes[index - 1], notes[index]];
       if (before && after) {
@@ -35,35 +40,46 @@ function averageJump(tier: TierId, level: number) {
   return total / count;
 }
 
-describe("tiers", () => {
-  test("Easy is the natural notes on E and A, frets 0 to 3", () => {
-    expect(tierPositions("easy").map(positionName)).toEqual([
-      "E1",
-      "F1",
-      "G1",
-      "A1",
-      "B1",
-      "C2",
-    ]);
+const keys = (level: Level) => levelSettings(level).positions.map(positionKey);
+
+describe("the start of the curve", () => {
+  test("Easy 1 is the open E and A strings, slowly, every other beat", () => {
+    const settings = levelSettings({ level: 1, tier: "easy" });
+
+    expect(settings.positions.map(positionName)).toEqual(["E1", "A1"]);
+    expect(settings.bpm).toBe(50);
+    expect(settings.beatsPerNote).toBe(2);
+    expect(settings.notes).toBe(10);
+    expect(settings.showFretHints).toBe(true);
+  });
+});
+
+describe("the whole curve", () => {
+  test("never gets slower, from Easy 1 to Demon 10", () => {
+    const paces = EVERY_LEVEL.map(notesPerMinute);
+
+    expect(paces).toEqual([...paces].sort((a, b) => a - b));
+    expect(paces[0]).toBe(25);
+    expect(paces.at(-1)).toBe(300);
   });
 
-  test("each tier adds strings or frets", () => {
-    const sizes = TIER_ORDER.map((tier) => tierPositions(tier).length);
+  test("each tier starts with every note the tier before ended with", () => {
+    for (const [index, tier] of TIER_ORDER.entries()) {
+      const before = TIER_ORDER[index - 1];
+      if (before) {
+        const start = new Set(keys({ level: 1, tier }));
+        for (const key of keys({ level: 10, tier: before })) {
+          expect(start.has(key)).toBe(true);
+        }
+      }
+    }
+  });
 
-    expect(sizes).toEqual([6, 16, 52]);
-    expect(
-      tierPositions("medium").every((position) => position.fret <= 5)
-    ).toBe(true);
-    expect(
-      tierPositions("medium").some((position) =>
-        positionName(position).includes("#")
-      )
-    ).toBe(false);
-    expect(
-      tierPositions("hard").some((position) =>
-        positionName(position).includes("#")
-      )
-    ).toBe(true);
+  test("never asks for notes closer than 150 ms, which detection needs", () => {
+    for (const level of EVERY_LEVEL) {
+      const { beatsPerNote, bpm } = levelSettings(level);
+      expect((60_000 / bpm) * beatsPerNote).toBeGreaterThanOrEqual(150);
+    }
   });
 
   test("help fades as the tiers get harder", () => {
@@ -71,88 +87,133 @@ describe("tiers", () => {
       true,
       false,
       false,
+      false,
     ]);
     expect(TIER_ORDER.map((tier) => TIERS[tier].showFretboard)).toEqual([
       true,
       true,
       false,
+      false,
     ]);
   });
 });
 
-describe("levelSettings", () => {
-  test("speeds up from level 1 to level 10", () => {
+describe("tiers", () => {
+  test("pools have no repeats and stay on the neck", () => {
     for (const tier of TIER_ORDER) {
-      const tempos = LEVELS.map((level) => levelSettings({ level, tier }).bpm);
-      expect(tempos[0]).toBe(TIERS[tier].bpm[0]);
-      expect(tempos[9]).toBe(TIERS[tier].bpm[1]);
-      expect(tempos).toEqual([...tempos].sort((a, b) => a - b));
+      const pool = tierPositions(tier);
+      expect(new Set(pool.map(positionKey)).size).toBe(pool.length);
+      for (const position of pool) {
+        expect(position.fret).toBeGreaterThanOrEqual(0);
+        expect(position.fret).toBeLessThanOrEqual(12);
+      }
     }
   });
 
-  test("lets notes jump further, and from level 6 makes them", () => {
-    const settings = LEVELS.map((level) =>
-      levelSettings({ level, tier: "medium" })
-    );
-    const maxJumps = settings.map((setting) => setting.maxJump);
-    const minJumps = settings.map((setting) => setting.minJump);
+  test("sharps only arrive in Hard", () => {
+    const hasSharps = (tier: TierId) =>
+      tierPositions(tier).some((position) =>
+        positionName(position).includes("#")
+      );
 
-    expect(maxJumps).toEqual([...maxJumps].sort((a, b) => a - b));
-    expect(maxJumps[0]).toBe(2);
-    expect(minJumps.slice(0, 2)).toEqual([0, 0]);
-    expect(minJumps.slice(2, 5)).toEqual([1, 1, 1]);
-    expect(minJumps).toEqual([...minJumps].sort((a, b) => a - b));
-    expect(minJumps[9]).toBeGreaterThan(2);
+    expect(TIER_ORDER.map(hasSharps)).toEqual([false, false, true, true]);
+  });
+
+  test("Demon is every note to the 12th fret, two per beat, with tighter timing", () => {
+    const settings = levelSettings({ level: 1, tier: "demon" });
+
+    expect(settings.positions).toHaveLength(52);
+    expect(settings.beatsPerNote).toBe(0.5);
+    expect(settings.timing?.perfectWindowMs).toBeLessThan(50);
+    expect(settings.timing?.goodWindowMs).toBeLessThan(120);
+  });
+});
+
+describe("levelSettings", () => {
+  test("level 1 of a tier only calls new what earlier tiers didn't have", () => {
+    expect(levelSettings({ level: 1, tier: "easy" }).newPositions).toHaveLength(
+      2
+    );
+    expect(levelSettings({ level: 1, tier: "medium" }).newPositions).toEqual(
+      []
+    );
+    expect(levelSettings({ level: 1, tier: "hard" }).newPositions).toEqual([]);
+    expect(
+      levelSettings({ level: 1, tier: "demon" }).newPositions
+    ).toHaveLength(52 - TIERS.hard.pool.length);
+  });
+
+  test("each level adds notes, and says which ones are new", () => {
+    for (const tier of TIER_ORDER) {
+      for (const level of LEVELS.slice(1)) {
+        const before = keys({ level: level - 1, tier });
+        const now = levelSettings({ level, tier });
+        const added = now.newPositions.map(positionKey);
+
+        expect(now.positions.length).toBeGreaterThanOrEqual(before.length);
+        expect([...before, ...added]).toEqual(now.positions.map(positionKey));
+      }
+      expect(keys({ level: 10, tier })).toHaveLength(TIERS[tier].pool.length);
+    }
+  });
+
+  test("speeds up and packs notes closer within each tier", () => {
+    for (const tier of TIER_ORDER) {
+      const settings = LEVELS.map((level) => levelSettings({ level, tier }));
+      const tempos = settings.map((setting) => setting.bpm);
+      const spacing = settings.map((setting) => setting.beatsPerNote);
+
+      expect(tempos).toEqual([...tempos].sort((a, b) => a - b));
+      expect(spacing).toEqual([...spacing].sort((a, b) => b - a));
+    }
+  });
+
+  test("Easy goes from every other beat to every beat", () => {
+    expect(levelSettings({ level: 10, tier: "easy" }).beatsPerNote).toBe(1);
   });
 });
 
 describe("generateLevelChart", () => {
-  test("makes a run of the tier's notes, within each level's jump range", () => {
-    for (const tier of TIER_ORDER) {
-      const allowed = new Set(tierPositions(tier).map(positionKey));
-      for (const level of LEVELS) {
-        const { maxJump, minJump, notes } = levelSettings({ level, tier });
-        const run = runOf(tier, level, level * 7);
+  test("makes a run of the level's notes, within its jump range and spacing", () => {
+    for (const level of EVERY_LEVEL) {
+      const settings = levelSettings(level);
+      const allowed = new Set(settings.positions.map(positionKey));
+      const run = runOf(level, level.level * 7);
 
-        expect(run).toHaveLength(notes);
-        for (const [index, note] of run.entries()) {
-          expect(allowed.has(positionKey(note))).toBe(true);
-          const before = run[index - 1];
-          if (before) {
-            const jump = neckDistance(before, note);
-            expect(jump).toBeGreaterThanOrEqual(minJump);
-            expect(jump).toBeLessThanOrEqual(maxJump);
-          }
+      expect(run).toHaveLength(settings.notes);
+      for (const [index, note] of run.entries()) {
+        expect(allowed.has(positionKey(note))).toBe(true);
+        expect(note.beat).toBe(index * settings.beatsPerNote);
+        const before = run[index - 1];
+        if (before) {
+          const jump = neckDistance(before, note);
+          expect(jump).toBeGreaterThanOrEqual(settings.minJump);
+          expect(jump).toBeLessThanOrEqual(settings.maxJump);
         }
       }
     }
   });
 
-  test("moves around the neck more at higher levels", () => {
+  test("moves around the neck more at the top of each tier", () => {
     for (const tier of TIER_ORDER) {
-      const low = averageJump(tier, 1);
-      const middle = averageJump(tier, 5);
-      const high = averageJump(tier, 10);
-
-      expect(middle).toBeGreaterThan(low);
-      expect(high).toBeGreaterThan(middle);
+      expect(averageJump({ level: 10, tier })).toBeGreaterThan(
+        averageJump({ level: 1, tier })
+      );
     }
   });
 
-  test("covers most of the tier's notes over a run", () => {
-    const used = new Set(runOf("medium", 5, 3).map(positionKey));
-
-    expect(used.size).toBeGreaterThanOrEqual(10);
-  });
-
   test("gives the same run for the same seed", () => {
-    expect(generateLevelChart({ level: 4, tier: "hard" }, { seed: 9 })).toEqual(
-      generateLevelChart({ level: 4, tier: "hard" }, { seed: 9 })
+    const level = { level: 4, tier: "hard" as const };
+
+    expect(generateLevelChart(level, { seed: 9 })).toEqual(
+      generateLevelChart(level, { seed: 9 })
     );
   });
 
   test("names the run after its level", () => {
-    expect(generateLevelChart({ level: 3, tier: "easy" }).title).toBe("Easy 3");
+    expect(generateLevelChart({ level: 3, tier: "demon" }).title).toBe(
+      "Demon 3"
+    );
   });
 });
 

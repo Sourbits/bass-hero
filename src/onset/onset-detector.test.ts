@@ -131,6 +131,43 @@ describe("detectOnsets", () => {
     expectWithin(errors.flat(), -0.1, 3.5);
   });
 
+  test("catches every note of a fast run, 200 ms apart with only 8 ms mutes", async () => {
+    // Demon speed: two notes a beat at 150 BPM, changing notes each time.
+    const times = Array.from({ length: 12 }, (_, index) => 0.2 + index * 0.2);
+    const runs = await Promise.all(
+      pairs(NOTES, SPECTRA).map(([note, harmonics]) =>
+        findOnsets(
+          generatePlucks(
+            times.map((time, index) => ({
+              frequency: frequencyOf(note) * (index % 2 === 0 ? 1 : 1.5),
+              phase: index,
+              time,
+            })),
+            {
+              attackMs: 1,
+              decaySeconds: 1.5,
+              duration: 2.8,
+              handoff: "mute",
+              harmonics,
+              muteMs: 8,
+              noise: NOISE,
+              sampleRate: 48_000,
+            }
+          )
+        )
+      )
+    );
+
+    for (const onsets of runs) {
+      expect(onsets).toHaveLength(times.length);
+      expectWithin(
+        onsets.map((onset, index) => onset.timeMs - (times[index] ?? 0) * 1000),
+        -0.1,
+        5
+      );
+    }
+  });
+
   test("pins low E with a slow 5 ms attack within 6 ms", async () => {
     const errors = await Promise.all(
       PHASES.map((phase) =>

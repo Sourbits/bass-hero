@@ -38,6 +38,10 @@ describe("nextLevel", () => {
       level: 1,
       tier: "medium",
     });
-    expect(nextLevel({ level: 10, tier: "hard" })).toBeNull();
+    expect(nextLevel({ level: 10, tier: "hard" })).toEqual({
+      level: 1,
+      tier: "demon",
+    });
+    expect(nextLevel({ level: 10, tier: "demon" })).toBeNull();
   });
 });

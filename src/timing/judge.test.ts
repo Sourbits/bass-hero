@@ -36,6 +36,7 @@ describe("rateOffset", () => {
     expect(rateOffset(50).rating).toBe("perfect");
     expect(rateOffset(-120).rating).toBe("good");
     expect(rateOffset(120).rating).toBe("good");
+    expect(rateOffset(120.4).rating).toBe("good");
     expect(rateOffset(-121)).toEqual({ rating: "miss", reason: "early" });
     expect(rateOffset(121)).toEqual({ rating: "miss", reason: "late" });
   });

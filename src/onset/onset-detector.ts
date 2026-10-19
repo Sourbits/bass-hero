@@ -40,10 +40,15 @@ const HISTORY_SECONDS = 0.25;
 /** When pinning a start, a quiet stretch this long before the rise is a mute. */
 const QUIET_MS = 5;
 /**
- * To trigger on a mute, the quiet must last longer: a third of a cycle of
- * low B. Low bass waveforms can sit near zero for several ms within a cycle.
+ * To trigger on a mute, the note must stay below this share of its level for
+ * MUTE_MS. Low bass waveforms can sit near zero for a while within a cycle,
+ * so the bar is very quiet rather than very long, which still catches the
+ * short mutes of fast playing. Chosen by sweeping both against generated
+ * plucks: this pair catches re-plucks after an 8 ms mute without adding false
+ * onsets.
  */
-const MUTE_MS = 12;
+const MUTE_MS = 8;
+const MUTE_LEVEL = 0.05;
 /** After a mute, a rise to this share of the level before it is a new pluck. */
 const MUTE_RISE = 0.25;
 
@@ -71,8 +76,9 @@ interface PendingOnset {
  *
  * 1. Detect: the peak level over the last 35 ms (a full cycle of low B) jumps
  *    to at least 1.5× the level over the 35 ms before, and above the floor.
- *    Or the note was muted (12 ms below a tenth of its level) and the level
- *    then comes back to at least a quarter of what it was: a quick re-pluck.
+ *    Or the note was muted (8 ms below a twentieth of its level) and the
+ *    level then comes back to at least a quarter of what it was: a quick
+ *    re-pluck.
  * 2. Pin the start: 15 ms later, once the new note's peak is known, find the
  *    first sample that rises 10% of the way from the old level to the new
  *    peak. If the old note was muted first, measure from the silence instead.
@@ -250,7 +256,7 @@ export function createOnsetDetector({
     // Watch for the player muting the string, which can come right before a
     // quick re-pluck.
     const muteLength = Math.round((MUTE_MS / 1000) * sampleRate);
-    quietRun = size < startFraction * recentLevel ? quietRun + 1 : 0;
+    quietRun = size < MUTE_LEVEL * recentLevel ? quietRun + 1 : 0;
     if (quietRun === muteLength) {
       mute = { at: sampleIndex, level: recentLevel };
     } else if (mute && quietRun > muteLength) {

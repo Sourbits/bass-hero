@@ -53,7 +53,9 @@ export function rateOffset(
   offsetMs: number,
   config: TimingConfig = TIMING
 ): Pick<Judgment, "rating" | "reason"> {
-  const distance = Math.abs(offsetMs);
+  // Judged in whole ms, as shown: "Late +80 ms" is never a Miss when Good
+  // reaches 80.
+  const distance = Math.abs(Math.round(offsetMs));
   if (distance <= config.perfectWindowMs) {
     return { rating: "perfect", reason: null };
   }

@@ -1,68 +1,122 @@
 /**
- * The game's difficulty settings, all in one place to tune. Each tier adds
- * strings and frets; each of its levels 1–10 moves around the neck more and
- * speeds up a little.
+ * The game's difficulty curve, all in one place to tune. It starts with two
+ * open strings at a crawl and ends in Demon. Every value given as a pair is
+ * [level 1, level 10]; the levels in between are spread evenly.
  */
 
-export type TierId = "easy" | "hard" | "medium";
+export type TierId = "demon" | "easy" | "hard" | "medium";
 
 export interface TierConfig {
-  /** Tempo at level 1 and at level 10; levels in between are spread evenly. */
+  /**
+   * Beats from one note to the next: 2 is every other beat, 0.5 is two notes
+   * per beat. Snapped to 2, 1½, 1, ¾ or ½.
+   */
+  beatsPerNote: [number, number];
+  /** Tempo, in BPM. */
   bpm: [number, number];
   description: string;
-  /** Highest fret used. */
-  maxFret: number;
+  /** How far each note may move from the last, as the same kind of share. */
+  maxJump: [number, number];
+  /**
+   * How far each note must move from the last, as a share of the widest
+   * move the level's notes allow. 0 allows repeats.
+   */
+  minJump: [number, number];
   name: string;
-  /** Only natural notes (no sharps), or every note. */
-  naturalsOnly: boolean;
   /** Notes per run. */
-  notes: number;
+  notes: [number, number];
+  /**
+   * Every note the tier uses, as string and fret ("E3" is the E string's 3rd
+   * fret), in the order they're introduced: a level uses the first few, and
+   * level 10 uses them all.
+   */
+  pool: string[];
   /** Show the fretboard map under the highway. Off: play from memory. */
   showFretboard: boolean;
   /** Write the fret number under each note on the highway. */
   showFretHints: boolean;
-  strings: ("A" | "D" | "E" | "G")[];
+  /** How many of the pool's notes level 1 uses. */
+  startNotes: number;
+  /** Tighter timing windows than the defaults in timing.ts, in ms. */
+  timing?: { goodWindowMs: number; perfectWindowMs: number };
 }
 
+/** Open strings first, then the natural notes on frets 1–3. */
+const EASY_POOL = ["E0", "A0", "D0", "G0", "E3", "A3", "D2", "G2", "E1", "A2"];
+/** The rest of the natural notes up to fret 5. */
+const MEDIUM_POOL = [...EASY_POOL, "D3", "G4", "E5", "A5", "D5", "G5"];
+/** Sharps up to fret 5, then every note on frets 6 and 7. */
+const HARD_POOL = [
+  ...MEDIUM_POOL,
+  ...["E2", "A1", "D1", "G1", "E4", "A4", "D4", "G3"],
+  ...["E6", "A6", "D6", "G6", "E7", "A7", "D7", "G7"],
+];
+/** Every note up to the 12th fret. */
+const DEMON_POOL = ["E", "A", "D", "G"].flatMap((string) =>
+  Array.from({ length: 13 }, (_, fret) => `${string}${fret}`)
+);
+
 export const TIERS: Record<TierId, TierConfig> = {
-  easy: {
-    bpm: [60, 75],
+  demon: {
+    beatsPerNote: [0.5, 0.5],
+    bpm: [100, 150],
     description:
-      "E and A strings, frets 0–3, natural notes. Fret numbers shown.",
-    maxFret: 3,
-    name: "Easy",
-    naturalsOnly: true,
-    notes: 16,
-    showFretboard: true,
-    showFretHints: true,
-    strings: ["E", "A"],
-  },
-  hard: {
-    bpm: [80, 105],
-    description:
-      "All four strings up to the 12th fret, sharps too. No map: play from memory.",
-    maxFret: 12,
-    name: "Hard",
-    naturalsOnly: false,
-    notes: 24,
+      "Every note to the 12th fret, two per beat, huge jumps, tighter timing (Perfect ±35 ms, Good ±80 ms). No help at all.",
+    maxJump: [1, 1],
+    minJump: [0.3, 0.5],
+    name: "Demon",
+    notes: [32, 48],
+    pool: DEMON_POOL,
     showFretboard: false,
     showFretHints: false,
-    strings: ["E", "A", "D", "G"],
+    startNotes: DEMON_POOL.length,
+    timing: { goodWindowMs: 80, perfectWindowMs: 35 },
+  },
+  easy: {
+    beatsPerNote: [2, 1],
+    bpm: [50, 70],
+    description:
+      "Starts with the open E and A strings, slowly, and adds a note almost every level, up to the 3rd fret. Fret numbers shown.",
+    maxJump: [0.5, 1],
+    minJump: [0, 0],
+    name: "Easy",
+    notes: [10, 16],
+    pool: EASY_POOL,
+    showFretboard: true,
+    showFretHints: true,
+    startNotes: 2,
+  },
+  hard: {
+    beatsPerNote: [1, 1],
+    bpm: [95, 120],
+    description:
+      "Adds the sharps, then frets 6 and 7, with notes always on the move. No map: play from memory.",
+    maxJump: [0.6, 1],
+    minJump: [0.1, 0.35],
+    name: "Hard",
+    notes: [20, 28],
+    pool: HARD_POOL,
+    showFretboard: false,
+    showFretHints: false,
+    startNotes: MEDIUM_POOL.length,
   },
   medium: {
-    bpm: [70, 90],
-    description: "All four strings, frets 0–5, natural notes. Names only.",
-    maxFret: 5,
+    beatsPerNote: [1, 1],
+    bpm: [70, 95],
+    description:
+      "All the natural notes up to the 5th fret on all four strings. Names only, with the map below.",
+    maxJump: [0.4, 1],
+    minJump: [0, 0.25],
     name: "Medium",
-    naturalsOnly: true,
-    notes: 20,
+    notes: [16, 20],
+    pool: MEDIUM_POOL,
     showFretboard: true,
     showFretHints: false,
-    strings: ["E", "A", "D", "G"],
+    startNotes: EASY_POOL.length,
   },
 };
 
-export const TIER_ORDER: TierId[] = ["easy", "medium", "hard"];
+export const TIER_ORDER: TierId[] = ["easy", "medium", "hard", "demon"];
 export const LEVELS_PER_TIER = 10;
 
 /**

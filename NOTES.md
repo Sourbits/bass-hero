@@ -1,6 +1,6 @@
 # Bass Hero notes
 
-## Latest: string tuner, the Game tab, buzz detection
+## Latest: string tuner, Game tab, difficulty curve, buzz, smoother scrolling
 
 On the `main-game` branch (from `note-highway`).
 
@@ -26,37 +26,68 @@ Every page now has a tab bar: **Game** (new, the main game), **Practice**
   Buzz).
 - Code: `src/pitch/string-tuning.ts`, tested.
 
-### Game: tiers and levels
+### Game: the difficulty curve
 
-All the tuning values are in `src/config/difficulty.ts`.
+All the tuning values are in `src/config/difficulty.ts`. Each value is given
+for level 1 and level 10 of its tier; the levels in between are spread evenly.
 
-| Tier | Notes | Help | Tempo, level 1 → 10 | Notes per run |
-| --- | --- | --- | --- | --- |
-| Easy | E and A strings, frets 0–3, natural notes (6) | Fret numbers under notes, fretboard map | 60 → 75 BPM | 16 |
-| Medium | All 4 strings, frets 0–5, natural notes (16) | Fretboard map | 70 → 90 BPM | 20 |
-| Hard | All 4 strings, frets 0–12, all notes (52) | None by default: play from memory | 80 → 105 BPM | 24 |
+| Tier | Notes (introduced a few per level) | Spacing | Tempo | Notes per run | Help |
+| --- | --- | --- | --- | --- | --- |
+| Easy | Open E and A at level 1 (2 notes), then open D and G, then G1, C2, E2, A2, F1, B1 (10 by level 10) | Every 2 beats → every beat | 50 → 70 BPM | 10 → 16 | Fret numbers, fretboard map |
+| Medium | Easy's 10, plus the rest of the natural notes to fret 5 (16) | Every beat | 70 → 95 BPM | 16 → 20 | Fretboard map |
+| Hard | Medium's 16, plus sharps to fret 5, then every note on frets 6–7 (32) | Every beat | 95 → 120 BPM | 20 → 28 | None: play from memory |
+| Demon | Every note to the 12th fret (52), from level 1 | Two notes per beat | 100 → 150 BPM | 32 → 48 | None, and tighter timing: Perfect ±35 ms, Good ±80 ms |
 
-- **Levels move notes around more.** Distance on the neck = frets moved, plus
-  2 for each string crossed.
-  - Levels 1–2: neighboring notes only, and repeats are allowed.
-  - Levels 3–5: something new each note, still close by.
-  - Levels 6–10: every note must jump at least a growing minimum.
-  - Level 10: anywhere in the tier.
-  - Notes played less often are more likely, so a run covers the tier's neck.
-- **Help fades as tiers get harder:** fret hints on Easy, names only on
-  Medium, and on Hard the fretboard map is hidden too (an option brings it
-  back). Lanes a tier doesn't use are dimmed.
-- **Progress** is saved per browser: best hit rate, best score and stars for
-  each level. Stars come at 60%, 80% and 95% of notes hit (Perfect or Good).
-  All levels are open; "Next level" moves you on.
-- **Learning the sound.** The results list the notes you missed, with string,
-  fret, why (wrong note, buzzed, late…) and a "Hear it" button, plus a
-  fretboard of them to tap. An optional guide tone plays each note as it
-  reaches the ring. It's off by default because the mic hears it too, so use
-  headphones.
-- Code: `src/game/difficulty.ts`, `progress.ts` and `review.ts` (all tested),
-  and the page in `src/components/game/level-game.tsx`. Game and Practice
-  share the run logic in `use-game-run.ts`.
+- **Easy 1 is very easy:** two open strings, a note every 2.4 seconds.
+- **Pace never drops** from Easy 1 to Demon 10, measured in notes per minute
+  (25 → 300). It's tested, along with the rule that each tier starts with
+  every note the one before ended with.
+- **Notes come in a few at a time.** Each level adds one or two notes to the
+  ones before, and the Game page lists what's new ("New in this level: G1 (E
+  string, fret 3)…").
+- **Movement grows within each tier.** Distance on the neck = frets moved,
+  plus 2 for each string crossed. Each tier sets the closest and furthest a
+  note may move from the last, as shares of its widest possible move. Easy
+  allows repeats throughout; Demon forces jumps of at least 30–50% of the
+  neck. Notes played less often are more likely, so a run covers the level's
+  notes.
+- **The fastest notes** (Demon 10, 200 ms apart) stay above the ~150 ms that
+  naming a note needs.
+- **Progress** is saved per browser: best hit rate, best score and stars per
+  level, with stars at 60%, 80% and 95% of notes hit. All levels are open.
+- **Learning the sound.** Missed notes are listed after a run with where they
+  are and "Hear it". The optional guide tone plays each note as it lands (use
+  headphones).
+
+### Smoother scrolling (the micro lags)
+
+- **Measured.** Frames arrived steadily, with none dropped and no long tasks,
+  but the game clock moved unevenly: 15.3 to 17.7 ms per 16.7 ms frame, up to
+  6.8 ms off. Notes near the strike line move about 0.5 px per ms, so they
+  jumped unevenly by 1–3 px: the micro lags. This was on our side.
+- **Fix** (`src/audio/audio-clock.ts`). The clock keeps a smoothed offset
+  between the audio clock and the page's clock, and each frame is drawn at
+  its own timestamp plus that offset. Measured again: the clock now moves by
+  exactly each frame's interval (within 0.005 ms). It still follows the audio
+  clock, which is what pluck times use, so timing judgments don't change.
+- **Also:** the highway no longer looks up the page's font every frame, and
+  the fretboards and note sets aren't rebuilt each time a note is judged.
+- **If it still stutters,** it's likely your machine: power-saving mode, many
+  tabs, or Bluetooth audio. Say so and I'll look further. The next step would
+  be moving the audio analysis off the page's main thread.
+
+### Fast runs: quick re-plucks are now caught
+
+At Demon speed the demo missed several plucks: a note played right after
+another, at the same loudness, with only a short mute. The mute rule now
+needs 8 ms below 5% of the note's level, instead of 12 ms below 10%. Tested
+on generated runs: quick re-plucks missed went from 306 of 336 to none, with
+no new false onsets. A new test plays 12 notes 200 ms apart with 8 ms mutes,
+for every note from B0 to G3. The Demon 1 demo now scores exactly as
+scripted.
+
+Also, timing is now judged in whole milliseconds, the same as shown, so
+"Late +80 ms" is never a Miss when Good reaches ±80 ms.
 
 ### Buzz: a buzzing note counts as a Miss
 
@@ -87,9 +118,11 @@ All the tuning values are in `src/config/difficulty.ts`.
    and "Tune up/down" match, and Auto picks the right string. Then play a few
    clean notes and a few buzzy ones (press lightly just behind the fret) and
    note the buzz meter values.
-2. **Game, Easy 1.** Fret hints, then Easy 5 and 10 to feel the jumps grow.
-   Medium and Hard to check the notes spread over the neck.
-3. **Buzz rule.** Does a clean note ever come up "Buzzing"? Does a really
+2. **Game.** Is Easy 1 easy enough, and is the climb through Easy and
+   Medium smooth? Try a Demon level to check it's hard but fair.
+3. **Smoothness.** Do notes still stutter? If they do, tell me your browser
+   and whether your computer is plugged in.
+4. **Buzz rule.** Does a clean note ever come up "Buzzing"? Does a really
    buzzy one get through? Tell me the meter readings and I'll set the
    threshold.
 

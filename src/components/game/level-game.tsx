@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { playNote } from "@/audio/play-note";
 import { Fretboard } from "@/components/fretboard";
 import { isDemoMode } from "@/components/game/audio-session";
@@ -24,11 +24,16 @@ import { TIMING } from "@/config/timing";
 import {
   generateLevelChart,
   type Level,
+  type LevelSettings,
   levelSettings,
   starsFor,
-  tierPositions,
 } from "@/game/difficulty";
-import { type Position, positionKey, positionMidi } from "@/game/positions";
+import {
+  type Position,
+  positionKey,
+  positionMidi,
+  positionName,
+} from "@/game/positions";
 import {
   type GameOptions,
   type LevelRecord,
@@ -69,17 +74,71 @@ function starText(stars: number) {
   return "★".repeat(stars) + "☆".repeat(3 - stars);
 }
 
-function movementText(level: number) {
-  if (level <= 2) {
-    return "Neighboring notes";
+function movementText({ maxJump, minJump, widestJump }: LevelSettings) {
+  if (minJump >= widestJump * 0.45) {
+    return "huge jumps";
   }
-  if (level <= 5) {
-    return "Short moves";
+  if (minJump > 0) {
+    return "always on the move";
   }
-  if (level <= 8) {
-    return "Wider jumps";
+  if (maxJump >= widestJump) {
+    return "anywhere in these notes";
   }
-  return "Anywhere on the neck";
+  return "short moves";
+}
+
+function spacingText(beatsPerNote: number) {
+  if (beatsPerNote === 0.5) {
+    return "two notes per beat";
+  }
+  if (beatsPerNote === 1) {
+    return "a note every beat";
+  }
+  return `a note every ${String(beatsPerNote).replace(".5", "½").replace("0.75", "¾")} beats`;
+}
+
+/** Past this many, new notes are summed up rather than listed. */
+const MAX_LISTED_NEW = 8;
+
+function NewNotes({ settings }: { settings: LevelSettings }) {
+  if (settings.newPositions.length === 0) {
+    return null;
+  }
+  const added = settings.newPositions;
+  if (added.length > MAX_LISTED_NEW) {
+    const frets = added.map((position) => position.fret);
+    return (
+      <p className="text-sm">
+        <span className="font-medium">New in this level:</span> {added.length}{" "}
+        notes, from fret {Math.min(...frets)} to fret {Math.max(...frets)}.
+      </p>
+    );
+  }
+  return (
+    <p className="text-sm">
+      <span className="font-medium">New in this level:</span>{" "}
+      {settings.newPositions.map((position, index) => (
+        <span key={positionKey(position)}>
+          {index > 0 ? ", " : ""}
+          <span style={{ color: STRING_COLORS[position.string] }}>
+            {positionName(position).replace("#", "♯")}
+          </span>
+          <span className="text-muted-foreground">
+            {" "}
+            ({position.string} string,{" "}
+            {position.fret === 0 ? "open" : `fret ${position.fret}`})
+          </span>
+        </span>
+      ))}
+    </p>
+  );
+}
+
+function tierStyle(tier: TierId, selected: boolean) {
+  if (tier === "demon") {
+    return selected ? "bg-red-600 text-white" : "text-red-600 hover:bg-red-50";
+  }
+  return selected ? "bg-foreground text-background" : "hover:bg-muted";
 }
 
 function TierButton({
@@ -95,9 +154,7 @@ function TierButton({
   return (
     <button
       aria-pressed={selected}
-      className={`flex-1 rounded-lg py-2 font-semibold transition-colors ${
-        selected ? "bg-foreground text-background" : "hover:bg-muted"
-      }`}
+      className={`flex-1 rounded-lg py-2 font-semibold transition-colors ${tierStyle(tier, selected)}`}
       onClick={choose}
       type="button"
     >
@@ -183,11 +240,14 @@ function LevelPicker({
       </div>
       <p className="text-muted-foreground text-sm">
         <span className="font-medium text-foreground">
-          {TIERS[current.tier].name} {current.level}
+          {TIERS[current.tier].name} {current.level}:
         </span>{" "}
-        · {movementText(current.level)} · {settings.bpm} BPM · {settings.notes}{" "}
-        notes. {TIERS[current.tier].description}
+        {settings.positions.length} notes to know,{" "}
+        {spacingText(settings.beatsPerNote)} at {settings.bpm} BPM,{" "}
+        {movementText(settings)}. {settings.notes} notes per run.{" "}
+        {TIERS[current.tier].description}
       </p>
+      <NewNotes settings={settings} />
     </fieldset>
   );
 }
@@ -377,7 +437,11 @@ export function LevelGame() {
       start({
         bpm: settings.bpm,
         chart: generateLevelChart(level),
-        config: { ...TIMING, countBuzz: choices.countBuzz },
+        config: {
+          ...TIMING,
+          ...settings.timing,
+          countBuzz: choices.countBuzz,
+        },
         guideTone: choices.guideTone,
         onFinish: ({ judgments: judged, notes: played }: FinishedRun) => {
           const rate = hitRate(judged, played.length);
@@ -414,7 +478,19 @@ export function LevelGame() {
     }
   }, [chooseLevel, options, startLevel, upNext]);
 
-  const settings = levelSettings(current);
+  const settings = useMemo(() => levelSettings(current), [current]);
+  const activeLanes = useMemo(
+    () => new Set(settings.positions.map((position) => position.string)),
+    [settings]
+  );
+  const levelKeys = useMemo(
+    () => new Set(settings.positions.map(positionKey)),
+    [settings]
+  );
+  const mapFrets = Math.max(
+    5,
+    ...settings.positions.map((position) => position.fret)
+  );
   const { feedback, getNow, judgments, notes, onFrame, phase, playing } = run;
   const showMap = settings.showFretboard || options.showFretboardAlways;
   let buttonLabel = phase === "finished" ? "Play again" : "Start";
@@ -431,7 +507,7 @@ export function LevelGame() {
       />
 
       <NoteHighway
-        activeLanes={new Set(TIERS[current.tier].strings)}
+        activeLanes={activeLanes}
         beatTimesMs={beatTimes(notes, run.bpm)}
         feedback={feedback}
         gems={toGems(notes, judgments, { fretHints: settings.showFretHints })}
@@ -492,7 +568,7 @@ export function LevelGame() {
       {showMap ? (
         <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-semibold">Notes in this tier</h2>
+            <h2 className="font-semibold">Notes in this level</h2>
             <Link
               className="text-muted-foreground text-sm underline underline-offset-4"
               href="/notes"
@@ -504,8 +580,8 @@ export function LevelGame() {
             Colored like their lanes. Tap one to hear it.
           </p>
           <Fretboard
-            frets={Math.max(5, TIERS[current.tier].maxFret)}
-            highlighted={new Set(tierPositions(current.tier).map(positionKey))}
+            frets={mapFrets}
+            highlighted={levelKeys}
             onTap={playing ? undefined : hear}
             tapMode="hear"
           />

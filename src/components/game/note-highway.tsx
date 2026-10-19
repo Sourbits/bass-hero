@@ -23,7 +23,7 @@ interface NoteHighwayProps {
   feedback: HighwayFeedback | null;
   gems: HighwayGem[];
   /** The game clock, or null when nothing is playing. */
-  getNow: (() => number) | null;
+  getNow: ((at?: number) => number) | null;
   /** Called every animation frame with the clock time used to draw it. */
   onFrame?: (nowMs: number) => void;
   /** Draw a lane and target ring per string. Off for any-string bars. */
@@ -59,6 +59,8 @@ export function NoteHighway({
   const [size, setSize] = useState({ height: 0, width: 0 });
   const latest = useRef({ activeLanes, beatTimesMs, gems, onFrame, showLanes });
   const burstStarts = useRef(new Map<string, number>());
+  // Looked up once: reading styles every frame can force a style recalc.
+  const fontFamily = useRef("sans-serif");
   latest.current = { activeLanes, beatTimesMs, gems, onFrame, showLanes };
 
   useEffect(() => {
@@ -66,6 +68,7 @@ export function NoteHighway({
     if (!container) {
       return;
     }
+    fontFamily.current = getComputedStyle(container).fontFamily;
     const observer = new ResizeObserver(([entry]) => {
       setSize({
         height: entry?.contentRect.height ?? 0,
@@ -92,7 +95,7 @@ export function NoteHighway({
       drawHighway(context, highwayGeometry(size.width, size.height), {
         ...latest.current,
         burstStarts: burstStarts.current,
-        fontFamily: getComputedStyle(canvas).fontFamily,
+        fontFamily: fontFamily.current,
         nowMs,
       });
       if (nowMs !== null && containerRef.current) {
@@ -109,8 +112,9 @@ export function NoteHighway({
       return;
     }
     let frame = 0;
-    const tick = () => {
-      const now = getNow();
+    // The frame's own timestamp is steady, so notes move evenly.
+    const tick = (frameTime: number) => {
+      const now = getNow(frameTime);
       draw(now);
       latest.current.onFrame?.(now);
       frame = requestAnimationFrame(tick);

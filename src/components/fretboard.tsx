@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { memo, useCallback } from "react";
 import { STRING_COLORS } from "@/components/string-colors";
 import { type Position, positionKey, positionName } from "@/game/positions";
 import { type BassString, STRINGS } from "@/instrument/bass";
@@ -85,7 +85,7 @@ function NoteCell({
  * bottom, the nut on the left. Each note is colored by its string, matching
  * the lanes on the highway.
  */
-export function Fretboard({
+function FretboardView({
   frets,
   highlighted,
   onTap,
@@ -154,3 +154,9 @@ export function Fretboard({
     </div>
   );
 }
+
+/**
+ * Only redraws when its notes change, not on every score update while a run
+ * is playing.
+ */
+export const Fretboard = memo(FretboardView);

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { playNote } from "@/audio/play-note";
 import { Fretboard } from "@/components/fretboard";
 import { isDemoMode } from "@/components/game/audio-session";
@@ -58,10 +58,13 @@ export function PlayGame() {
     setCustomKeys(new Set(practice.customKeys));
   }, []);
 
-  const noteSet =
-    setId === CUSTOM_SET_ID
-      ? customSet(customKeys)
-      : (NOTE_SETS.find((set) => set.id === setId) ?? NOTE_SETS[0]);
+  const noteSet = useMemo(
+    () =>
+      setId === CUSTOM_SET_ID
+        ? customSet(customKeys)
+        : (NOTE_SETS.find((set) => set.id === setId) ?? NOTE_SETS[0]),
+    [customKeys, setId]
+  );
 
   const start = () =>
     run.start({
@@ -295,6 +298,10 @@ function NotesLegend({
   const frets = isCustom
     ? 12
     : Math.max(5, ...positions.map((position) => position.fret));
+  const highlighted = useMemo(
+    () => new Set(positions.map(positionKey)),
+    [positions]
+  );
   return (
     <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -315,7 +322,7 @@ function NotesLegend({
       </p>
       <Fretboard
         frets={frets}
-        highlighted={new Set(positions.map(positionKey))}
+        highlighted={highlighted}
         onTap={onTap}
         tapMode={isCustom ? "toggle" : "hear"}
       />

@@ -78,7 +78,7 @@ export function Calibration() {
   const [beats, setBeats] = useState<Beat[]>([]);
   const [heardBeats, setHeardBeats] = useState<Set<number>>(new Set());
   const [feedback, setFeedback] = useState<HighwayFeedback | null>(null);
-  const [getNow, setGetNow] = useState<(() => number) | null>(null);
+  const [getNow, setGetNow] = useState<((at?: number) => number) | null>(null);
   const [result, setResult] = useState<CalibrationResult | null>(null);
   const [savedOffset, setSavedOffset] = useState(0);
   const [manualOffset, setManualOffset] = useState("0");

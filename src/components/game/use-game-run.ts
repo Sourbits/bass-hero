@@ -50,7 +50,7 @@ export function useGameRun() {
   const [notes, setNotes] = useState<ScheduledNote[]>([]);
   const [judgments, setJudgments] = useState<(Judgment | undefined)[]>([]);
   const [feedback, setFeedback] = useState<HighwayFeedback | null>(null);
-  const [getNow, setGetNow] = useState<(() => number) | null>(null);
+  const [getNow, setGetNow] = useState<((at?: number) => number) | null>(null);
 
   const sessionRef = useRef<AudioSession | null>(null);
   const judgeRef = useRef<Judge | null>(null);
