@@ -12,7 +12,9 @@ import {
 import { LevelPicker } from "@/components/game/level-game";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
+import type { TierId } from "@/config/difficulty";
 import { EAR_TRAINING } from "@/config/ear-training";
+import { reportAchievement } from "@/game/achievements";
 import { type Level, levelSettings } from "@/game/difficulty";
 import {
   type EarPrompt,
@@ -165,6 +167,8 @@ export function EarTraining() {
   const listenFromRef = useRef(Number.POSITIVE_INFINITY);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const demoRef = useRef<boolean>(false);
+  /** The tier the round's notes came from, for achievements. */
+  const tierRef = useRef<TierId>("easy");
   const onNoteRef = useRef<(played: PlayedNote) => void>(() => undefined);
 
   useEffect(() => {
@@ -234,6 +238,14 @@ export function EarTraining() {
       update({ ...viewRef.current, results: finished, stage: "done" });
       if (!demoRef.current) {
         saveOutcomes(earOutcomes(finished));
+        reportAchievement({
+          at: new Date(),
+          firstTries: finished.map(
+            (result) => result.solved && result.tries === 1
+          ),
+          kind: "ear-round",
+          tier: tierRef.current,
+        });
       }
       stopAll().catch(() => undefined);
     },
@@ -304,6 +316,7 @@ export function EarTraining() {
   const start = useCallback(async () => {
     setError("");
     const { positions } = levelSettings(progress.current);
+    tierRef.current = progress.current.tier;
     promptsRef.current = earPrompts(positions, EAR_TRAINING.prompts);
     demoRef.current = isDemoMode();
     update({ ...START_VIEW, stage: "starting" });

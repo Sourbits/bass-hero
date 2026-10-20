@@ -81,6 +81,7 @@ export function PlayGame() {
     run.start({
       bpm,
       chart: noteSet?.fixedChart ?? generateChart(noteSet?.positions ?? []),
+      mode: "practice",
     });
 
   const changeTempo = useCallback(

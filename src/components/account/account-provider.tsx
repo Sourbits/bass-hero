@@ -15,6 +15,7 @@ import {
   collectLocalData,
   replaceLocalData,
 } from "@/account/local-data";
+import { reportAchievement } from "@/game/achievements";
 import {
   EMPTY_SAVED_DATA,
   mergeSavedData,
@@ -110,6 +111,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       // Only touch this browser's copy if the account had something newer.
       if (sortedJson(saved) !== sortedJson(local)) {
         replaceLocalData(saved);
+      }
+      if (merge) {
+        reportAchievement({ kind: "signed-in" });
       }
       setStatus({ at: new Date(), kind: "saved" });
       return true;

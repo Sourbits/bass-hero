@@ -1,8 +1,61 @@
 # Bass Hero notes
 
-## Latest: accounts and saved progress
+## Latest: achievements
 
-On the `combos-and-training` branch, with the combos work below.
+On the `achievements` branch (from `combos-and-training`).
+
+- **39 achievements:** the 28 you approved, plus 11 early ones, so a new
+  player unlocks a few in their first sessions.
+- **The 11 new early ones** (in the "Getting started" group):
+  - **Spot On**: land your first Perfect.
+  - **First Clear**: clear your first level (1 star or more).
+  - **Open Strings**: hit all four open strings, E, A, D and G.
+  - **Shining Star**: get 3 stars on any level.
+  - **Free Play**: finish a Practice run.
+  - **Self Aware**: finish a Weak spots run.
+  - **First Listen**: find an ear training note on the first try.
+  - **Halfway There**: clear Easy 5.
+  - **Century**: play 100 notes.
+  - **Explorer**: play Levels, Practice, Weak spots and Ear training.
+  - **Safe Keeping**: sign in, so your progress is saved to an account.
+- **Where they show:**
+  - A new **Achievements** tab lists all 39 in six groups, with unlock
+    dates and progress bars for goals that build up ("12 / 30 stars").
+  - A pop-up in the corner announces each unlock, on any page. Four or more
+    at once show as one pop-up.
+- **Saved** in the browser and, when signed in, to the account. Merging
+  keeps everything unlocked on either device, with the earliest date.
+- **Already earned counts.** Achievements that come from saved progress
+  (stars, clears, the heat map) unlock on the first page load. Existing
+  players aren't starting from zero.
+- **Demo runs don't count**, same as for the heat map.
+- **Choices I made where the list left room:**
+  - **Clean Hands** needs 2 stars or more, with buzz checking on and no
+    buzzing note. Otherwise it came free with almost any first clear.
+  - **Metronome** uses your average offset, early and late cancelling out,
+    as on the results screen: within ±5 ms over 30+ hits.
+  - **"Solid green"** on the heat map means mastery 0.85 or more: the line
+    under which a note counts as a weak spot.
+  - **Marathon and Century** count every note in finished runs and ear
+    training rounds, hit or not.
+  - **Night Owl** means finishing between midnight and 4 am.
+  - **Day streaks** need a run or round finished on each day. On the page,
+    a streak shows as broken once a whole day passes without playing.
+- **Goals are all in `src/config/achievements.ts`**, to tune. The list is
+  `src/game/achievement-list.ts`.
+- **Checked in the browser:**
+  - Made-up guest progress unlocked First Clear, Open Strings, Shining Star
+    and Halfway There on load, in one pop-up.
+  - Saving a calibration unlocked Dialed In.
+  - Signing in unlocked Safe Keeping, and the account then held all 6.
+- **Not verified with a real bass:** unlocks from real runs, ear training
+  and the tuner. The mic is blocked in my browser and demo runs don't
+  count, so 19 unit tests cover those rules instead.
+- **Nothing new to install.**
+
+## Earlier: accounts and saved progress
+
+On the `combos-and-training` branch, with the combos work below. Committed.
 
 - **Accounts.** A "Sign in" button at the right of the tabs opens the new
   Account page: sign in, or create an account with a name, email and
@@ -116,38 +169,9 @@ On the `combos-and-training` branch (from `main-game`).
   note through speakers. The demo can't test this. If an answer registers
   before you play, raise `listenAfterMs`.
 
-### Achievements: proposed, not built
+### Achievements
 
-Waiting for you to add or remove some before building.
-
-1. **First Note**: hit your first note.
-2. **Tuned Up**: get all four strings in tune in the tuner.
-3. **Dialed In**: save a calibration.
-4. **Warmed Up**: 10 in a row (reach ×2).
-5. **On Fire**: reach ×4.
-6. **Unstoppable**: 50 in a row.
-7. **Full Combo**: finish a level with no misses.
-8. **Perfectionist**: finish a level with every note Perfect.
-9. **Clean Hands**: finish a level without a single buzzing note.
-10. **Metronome**: average timing within ±5 ms over a run of 30+ notes.
-11. **Easy Does It**: clear Easy 10.
-12. **Getting Serious**: clear Medium 10.
-13. **Hard Rock**: clear Hard 10.
-14. **Demon Slayer**: clear Demon 1.
-15. **Demon Lord**: 3 stars on Demon 10.
-16. **Star Collector**: earn 30 stars.
-17. **All the Stars**: earn all 120 stars.
-18. **Know Your E**: every note on the E string, to fret 12, solid green on the heat map.
-19. **First Position**: every note on frets 0–5 solid green.
-20. **Whole Neck**: every note to fret 12 solid green.
-21. **No Weak Spots**: finish a Weak spots run with 90% or more.
-22. **Good Ears**: 10 of 10 on the first try in an ear training round.
-23. **Golden Ears**: 10 of 10 on the first try on a Hard or Demon round.
-24. **Ear Streak**: 25 first-try answers in a row, across rounds.
-25. **Daily Practice**: play on 3 days in a row.
-26. **Weekly Habit**: play on 7 days in a row.
-27. **Marathon**: play 1,000 notes in total.
-28. **Night Owl**: finish a run after midnight.
+Proposed here, then built: see "Latest: achievements" at the top.
 
 ## Earlier: string tuner, Game tab, difficulty curve, buzz, smoother scrolling
 

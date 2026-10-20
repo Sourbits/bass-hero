@@ -1,14 +1,21 @@
+import {
+  type AchievementRecord,
+  EMPTY_ACHIEVEMENTS,
+  mergeAchievements,
+  parseAchievements,
+} from "./achievements";
 import { type NoteStat, type NoteStats, parseNoteStats } from "./note-stats";
 import { type PracticeSetting, parsePractice } from "./practice-setting";
 import { type LevelRecord, type Progress, parseProgress } from "./progress";
 import { parseTempo } from "./tempo-setting";
 
 /**
- * Everything saved to an account: level progress, the heat map stats and
- * Practice settings. The latency offset isn't here on purpose: it belongs to
+ * Everything saved to an account: level progress, achievements, the heat
+ * map stats and Practice settings. The latency offset isn't here on purpose: it belongs to
  * a device's mic and speakers, not to the player.
  */
 export interface SavedData {
+  achievements: AchievementRecord;
   noteStats: NoteStats;
   practice: PracticeSetting | null;
   progress: Progress;
@@ -22,6 +29,7 @@ export interface SavedData {
 export const MAX_SAVED_DATA_BYTES = 256 * 1024;
 
 export const EMPTY_SAVED_DATA: SavedData = {
+  achievements: EMPTY_ACHIEVEMENTS,
   noteStats: {},
   practice: null,
   progress: parseProgress(null),
@@ -41,6 +49,7 @@ export function parseSavedData(value: unknown): SavedData | null {
   }
   const updatedAt = Number(raw.updatedAt);
   return {
+    achievements: parseAchievements(raw.achievements),
     noteStats: parseNoteStats(raw.noteStats),
     practice: raw.practice ? parsePractice(raw.practice) : null,
     progress: parseProgress(raw.progress),
@@ -98,6 +107,7 @@ export function mergeSavedData(a: SavedData, b: SavedData): SavedData {
   }
 
   return {
+    achievements: mergeAchievements(older.achievements, newer.achievements),
     noteStats: mergeNoteStats(older.noteStats, newer.noteStats),
     practice: newer.practice ?? older.practice,
     progress: { ...newer.progress, records },

@@ -91,6 +91,7 @@ export function WeakSpots() {
       start({
         bpm: RUN_BPM,
         chart: generateChart(spots, { length: RUN_NOTES }),
+        mode: "weak-spots",
         onFinish: () => setStats(loadNoteStats()),
       }),
     [spots, start]

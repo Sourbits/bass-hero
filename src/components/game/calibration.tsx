@@ -14,6 +14,7 @@ import {
 } from "@/components/game/note-highway";
 import { Button } from "@/components/ui/button";
 import { CALIBRATION } from "@/config/timing";
+import { reportAchievement } from "@/game/achievements";
 import type { DemoPluck } from "@/game/demo";
 import { detectOnsets } from "@/onset/onset-detector";
 import {
@@ -189,6 +190,7 @@ export function Calibration() {
 
   const save = useCallback((offsetMs: number) => {
     if (saveLatencyOffset(offsetMs)) {
+      reportAchievement({ kind: "calibrated" });
       const rounded = Math.round(offsetMs);
       setSavedOffset(rounded);
       setManualOffset(String(rounded));

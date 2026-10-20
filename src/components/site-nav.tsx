@@ -8,6 +8,7 @@ const TABS = [
   { href: "/game", label: "Game" },
   { href: "/play", label: "Practice" },
   { href: "/notes", label: "Learn" },
+  { href: "/achievements", label: "Achievements" },
   { href: "/tuner", label: "Tuner" },
   { href: "/calibrate", label: "Calibrate" },
 ] as const;

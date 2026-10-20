@@ -469,6 +469,8 @@ export function LevelGame() {
           countBuzz: choices.countBuzz,
         },
         guideTone: choices.guideTone,
+        level,
+        mode: "level",
         onFinish: ({
           judgments: judged,
           notes: played,

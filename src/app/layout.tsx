@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AccountProvider } from "@/components/account/account-provider";
+import { AchievementToasts } from "@/components/achievement-toasts";
 import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
@@ -29,6 +30,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <AccountProvider>
           <SiteNav />
           {children}
+          <AchievementToasts />
         </AccountProvider>
       </body>
     </html>

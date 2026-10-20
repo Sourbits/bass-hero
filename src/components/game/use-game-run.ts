@@ -10,8 +10,11 @@ import {
 import { toFeedback } from "@/components/game/game-parts";
 import type { HighwayFeedback } from "@/components/game/note-highway";
 import { TIMING, type TimingConfig } from "@/config/timing";
+import type { RunMode } from "@/game/achievement-stats";
+import { reportAchievement } from "@/game/achievements";
 import { type Chart, type ScheduledNote, scheduleChart } from "@/game/chart";
 import { demoPerformance } from "@/game/demo";
+import type { Level } from "@/game/difficulty";
 import { outcomesFromRun, saveOutcomes } from "@/game/note-stats";
 import { detectPlayedNotes } from "@/onset/played-notes";
 import { createJudge, type Judge, type Judgment } from "@/timing/judge";
@@ -30,6 +33,10 @@ export interface RunOptions {
   config?: TimingConfig;
   /** Play each note out loud as it reaches the strike line. */
   guideTone?: boolean;
+  /** The level played, in Levels mode, for achievements. */
+  level?: Level;
+  /** Which mode this run is, for achievements. */
+  mode: RunMode;
   /** Called once when every note is judged and the run ends. */
   onFinish?: (run: FinishedRun) => void;
 }
@@ -64,6 +71,11 @@ export function useGameRun() {
   const demoRef = useRef<boolean>(false);
   const endsAtRef = useRef(0);
   const onFinishRef = useRef<RunOptions["onFinish"]>(undefined);
+  const runInfoRef = useRef<{
+    countBuzz: boolean;
+    level: Level | null;
+    mode: RunMode;
+  }>({ countBuzz: true, level: null, mode: "practice" });
   /** How far the audio has been analyzed, on the game clock, in ms. */
   const analyzedMsRef = useRef(0);
 
@@ -101,10 +113,17 @@ export function useGameRun() {
       chart,
       config = TIMING,
       guideTone,
+      level,
+      mode,
       onFinish,
     }: RunOptions) => {
       setPhase("starting");
       onFinishRef.current = onFinish;
+      runInfoRef.current = {
+        countBuzz: config.countBuzz,
+        level: level ?? null,
+        mode,
+      };
       setError("");
       setJudgments([]);
       setOrder([]);
@@ -192,6 +211,17 @@ export function useGameRun() {
           notes: notesRef.current,
           order: orderRef.current,
         });
+        // After the run's own progress is saved, so the check sees it.
+        if (!demoRef.current) {
+          reportAchievement({
+            ...runInfoRef.current,
+            at: new Date(),
+            judgments: judge.judgments(),
+            kind: "run",
+            order: orderRef.current,
+            total: notesRef.current.length,
+          });
+        }
         stopAudio().catch(() => undefined);
       }
     },

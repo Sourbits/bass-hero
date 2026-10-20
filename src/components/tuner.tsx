@@ -9,6 +9,7 @@ import { describeAudioError } from "@/components/audio-errors";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
 import { TIMING } from "@/config/timing";
+import { reportAchievement } from "@/game/achievements";
 import { type BassString, OPEN_STRING_MIDI, STRINGS } from "@/instrument/bass";
 import { measureBuzz } from "@/onset/buzz";
 import { detectNotes } from "@/pitch/note-detector";
@@ -327,6 +328,8 @@ export function Tuner() {
   const stopRef = useRef<(() => Promise<void>) | null>(null);
   // Read by the audio callback, which outlives any one render.
   const choiceRef = useRef<StringChoice>("auto");
+  const statusesRef = useRef<Partial<Record<BassString, StringTuning>>>({});
+  const tunedRef = useRef<boolean>(false);
 
   const choose = useCallback((next: StringChoice) => {
     choiceRef.current = next;
@@ -376,7 +379,22 @@ export function Tuner() {
             shown.frequency,
             picked === "auto" ? nearestString(shown.frequency) : picked
           );
-          setStatuses((previous) => ({ ...previous, [heard.string]: heard }));
+          statusesRef.current = {
+            ...statusesRef.current,
+            [heard.string]: heard,
+          };
+          setStatuses(statusesRef.current);
+          // All four strings in tune, by their latest readings. A test tone
+          // is only ever one note, so it can't do this.
+          if (
+            !(tone || tunedRef.current) &&
+            STRINGS.every(
+              (string) => statusesRef.current[string]?.direction === "in-tune"
+            )
+          ) {
+            tunedRef.current = true;
+            reportAchievement({ kind: "tuned" });
+          }
         }
         setLevelDb(reading.levelDb);
         const samples = history.slice(reading.windowStart, reading.time);

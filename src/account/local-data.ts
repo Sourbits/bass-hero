@@ -1,3 +1,7 @@
+import {
+  ACHIEVEMENTS_STORAGE_KEY,
+  loadAchievements,
+} from "@/game/achievements";
 import { loadNoteStats, NOTE_STATS_STORAGE_KEY } from "@/game/note-stats";
 import { loadPractice, PRACTICE_STORAGE_KEY } from "@/game/practice-setting";
 import { loadProgress, PROGRESS_STORAGE_KEY } from "@/game/progress";
@@ -7,6 +11,7 @@ import { loadTempo, TEMPO_STORAGE_KEY } from "@/game/tempo-setting";
 
 /** Every saved-data key an account covers. The latency offset isn't one. */
 const ACCOUNT_KEYS = [
+  ACHIEVEMENTS_STORAGE_KEY,
   NOTE_STATS_STORAGE_KEY,
   PRACTICE_STORAGE_KEY,
   PROGRESS_STORAGE_KEY,
@@ -31,6 +36,7 @@ export function collectLocalData(): SavedData {
     updatedAt = 0;
   }
   return {
+    achievements: loadAchievements(),
     noteStats: loadNoteStats(),
     practice: has(PRACTICE_STORAGE_KEY) ? loadPractice() : null,
     progress: loadProgress(),
@@ -61,6 +67,7 @@ function writeAll(entries: [string, string | null][]) {
  */
 export function replaceLocalData(data: SavedData) {
   writeAll([
+    [ACHIEVEMENTS_STORAGE_KEY, JSON.stringify(data.achievements)],
     [NOTE_STATS_STORAGE_KEY, JSON.stringify(data.noteStats)],
     [
       PRACTICE_STORAGE_KEY,

@@ -18,6 +18,19 @@ function data(change: Partial<SavedData>): SavedData {
 describe("parseSavedData", () => {
   test("round-trips through JSON", () => {
     const saved = data({
+      achievements: {
+        stats: {
+          bestEarStreak: 4,
+          earStreak: 2,
+          modesPlayed: ["level", "ear-training"],
+          notesPlayed: 120,
+          playDays: ["2026-10-19", "2026-10-20"],
+        },
+        unlocked: {
+          century: 1_700_000_000_500,
+          "first-note": 1_700_000_000_000,
+        },
+      },
       noteStats: { E3: { attempts: 4, hits: 3, mastery: 0.7 } },
       practice: { customKeys: ["E0", "A3"], setId: "custom" },
       progress: recordRun(EMPTY_SAVED_DATA.progress, easy1, {
@@ -148,5 +161,14 @@ describe("mergeNoteStats", () => {
       D0: { attempts: 1, hits: 1, mastery: 0.65 },
       E3: { attempts: 10, hits: 4, mastery: 0.4 },
     });
+  });
+});
+
+describe("older saved data", () => {
+  test("data saved before achievements existed still loads", () => {
+    const { achievements: _, ...before } = EMPTY_SAVED_DATA;
+    expect(parseSavedData(before)?.achievements).toEqual(
+      EMPTY_SAVED_DATA.achievements
+    );
   });
 });
