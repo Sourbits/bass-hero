@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { LevelGame } from "@/components/game/level-game";
+import { GameHub } from "@/components/game/game-hub";
 
 export const metadata: Metadata = {
   description:
@@ -13,12 +13,11 @@ export default function GamePage() {
       <header className="flex flex-col gap-1">
         <h1 className="font-semibold text-3xl">Game</h1>
         <p className="text-muted-foreground">
-          Learn every note on the neck. Each tier adds strings and frets; each
-          level 1–10 jumps around more. Play each note as it reaches the ring in
-          its lane, and keep it clean.
+          Learn every note on the neck, and how each one sounds. Play each note
+          as it reaches the ring in its lane, and keep it clean.
         </p>
       </header>
-      <LevelGame />
+      <GameHub />
     </main>
   );
 }

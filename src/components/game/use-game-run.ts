@@ -12,6 +12,7 @@ import type { HighwayFeedback } from "@/components/game/note-highway";
 import { TIMING, type TimingConfig } from "@/config/timing";
 import { type Chart, type ScheduledNote, scheduleChart } from "@/game/chart";
 import { demoPerformance } from "@/game/demo";
+import { outcomesFromRun, saveOutcomes } from "@/game/note-stats";
 import { detectPlayedNotes } from "@/onset/played-notes";
 import { createJudge, type Judge, type Judgment } from "@/timing/judge";
 import { loadLatencyOffset } from "@/timing/latency-setting";
@@ -36,12 +37,15 @@ export interface RunOptions {
 export interface FinishedRun {
   judgments: (Judgment | undefined)[];
   notes: ScheduledNote[];
+  /** Note indexes in the order they were judged, for combos. */
+  order: number[];
 }
 
 /**
  * One run of the game: opens the mic (or the demo bass), schedules a chart on
  * the game clock, judges every played note, and finishes once every note is
- * judged. Shared by the Game and Practice pages.
+ * judged, saving how each note went for the heat map. Shared by the Game and
+ * Practice pages.
  */
 export function useGameRun() {
   const [phase, setPhase] = useState<RunPhase>("idle");
@@ -49,12 +53,15 @@ export function useGameRun() {
   const [bpm, setBpm] = useState(60);
   const [notes, setNotes] = useState<ScheduledNote[]>([]);
   const [judgments, setJudgments] = useState<(Judgment | undefined)[]>([]);
+  const [order, setOrder] = useState<number[]>([]);
   const [feedback, setFeedback] = useState<HighwayFeedback | null>(null);
   const [getNow, setGetNow] = useState<((at?: number) => number) | null>(null);
 
   const sessionRef = useRef<AudioSession | null>(null);
   const judgeRef = useRef<Judge | null>(null);
   const notesRef = useRef<ScheduledNote[]>([]);
+  const orderRef = useRef<number[]>([]);
+  const demoRef = useRef<boolean>(false);
   const endsAtRef = useRef(0);
   const onFinishRef = useRef<RunOptions["onFinish"]>(undefined);
   /** How far the audio has been analyzed, on the game clock, in ms. */
@@ -74,7 +81,16 @@ export function useGameRun() {
     [stopAudio]
   );
 
-  const show = useCallback((judge: Judge, latest: Judgment) => {
+  const show = useCallback((judge: Judge, judged: Judgment[]) => {
+    const latest = judged.at(-1);
+    if (!latest) {
+      return;
+    }
+    orderRef.current = [
+      ...orderRef.current,
+      ...judged.map((judgment) => judgment.index),
+    ];
+    setOrder(orderRef.current);
     setJudgments(judge.judgments());
     setFeedback(toFeedback(latest, notesRef.current));
   }, []);
@@ -91,10 +107,13 @@ export function useGameRun() {
       onFinishRef.current = onFinish;
       setError("");
       setJudgments([]);
+      setOrder([]);
+      orderRef.current = [];
       setFeedback(null);
       judgeRef.current = null;
       analyzedMsRef.current = 0;
       const demo = isDemoMode();
+      demoRef.current = demo;
 
       try {
         const session = await startAudioSession({
@@ -109,7 +128,7 @@ export function useGameRun() {
                   onsetMs,
                 });
                 if (judge && judgment) {
-                  show(judge, judgment);
+                  show(judge, [judgment]);
                 }
               },
               onReading: ({ time }) => {
@@ -160,16 +179,18 @@ export function useGameRun() {
       // If the page falls behind (a busy or background tab), plucks arrive
       // late, and going by the clock alone would miss notes that were played.
       const closed = judge.closeWindows(Math.min(nowMs, analyzedMsRef.current));
-      const latest = closed.at(-1);
-      if (latest) {
-        show(judge, latest);
-      }
+      show(judge, closed);
       if (judge.isComplete() && nowMs > endsAtRef.current) {
         judgeRef.current = null;
         setPhase("finished");
+        // Feeds the fretboard heat map. Demo runs aren't you playing.
+        if (!demoRef.current) {
+          saveOutcomes(outcomesFromRun(notesRef.current, judge.judgments()));
+        }
         onFinishRef.current?.({
           judgments: judge.judgments(),
           notes: notesRef.current,
+          order: orderRef.current,
         });
         stopAudio().catch(() => undefined);
       }
@@ -192,6 +213,7 @@ export function useGameRun() {
     judgments,
     notes,
     onFrame,
+    order,
     phase,
     playing: phase === "playing" || phase === "starting",
     start,

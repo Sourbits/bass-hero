@@ -1,6 +1,155 @@
 # Bass Hero notes
 
-## Latest: string tuner, Game tab, difficulty curve, buzz, smoother scrolling
+## Latest: accounts and saved progress
+
+On the `combos-and-training` branch, with the combos work below.
+
+- **Accounts.** A "Sign in" button at the right of the tabs opens the new
+  Account page: sign in, or create an account with a name, email and
+  password (8+ characters). Signed in, the button shows your name, and the
+  page shows whether everything is saved, with Save now and Sign out.
+- **What's saved:** level stars and bests, the level you're on in each tier
+  and the level options, the heat map stats, and Practice's note set and
+  tempo. **Not saved:** the latency calibration, on purpose: it belongs to a
+  device's mic and speakers, so each device keeps its own.
+- **Guests still play as before**, saved in the browser only.
+- **How saving works** (`src/components/account/account-provider.tsx`):
+  - On sign-in, the account and this browser's progress are merged, keeping
+    the best of both: for each level the best stars, score and hit rate.
+    Settings and "current level" come from whichever copy changed last.
+    So guest progress isn't lost when you sign in.
+  - Then each change is saved 1.5 s after it happens (a finished run, a
+    changed setting).
+  - The server merges every save into what it has instead of overwriting,
+    so two devices can't wipe each other's bests. If the account had
+    something newer, the open screen updates on its own.
+  - Sign out saves anything pending first, then clears this browser's copy
+    so the next person starts fresh. It's still in the account. If that
+    last save fails (say, the server is down), it stays signed in and offers
+    "Sign out anyway".
+- **How it's built:**
+  - [Better Auth](https://www.better-auth.com) 1.7 for accounts: password
+    hashing, session cookies and rate limiting, rather than writing my own.
+    It's the maintained successor to the libraries Next.js recommends.
+  - The database is a SQLite file at `data/bass-hero.db`, through Node 24's
+    built-in `node:sqlite`, so nothing native needs compiling or
+    installing. Its tables are made on the first request. `data/` is never
+    committed. To start over, stop the server and delete `data/`.
+  - Saved progress is one JSON document per player, checked on the way in
+    (`src/game/saved-data.ts`) and capped at 256 KB.
+  - Routes: `/api/auth/*` (Better Auth) and `/api/player-data` (GET your
+    progress, PUT to save and merge it).
+  - The session is read in the browser and in those routes only, so every
+    page stays static and fast.
+- **Setup:** I made `.env.local` with a fresh random secret, so it works as
+  is. On another machine, copy `.env.example` to `.env.local` and fill it in.
+- **Test account:** I made one to test with. Its details are in
+  `data/dev-test-account.json`, which is never committed.
+- **Checked in the browser:**
+  - Sign-up with existing guest progress: the account got all of it.
+  - Sign-out cleared this browser's copy, and the account then refused
+    requests (401).
+  - Signing back in on the empty browser brought back the stars, the
+    current level and the tempo.
+  - A best saved from a "second device" showed up on the open Game screen
+    after the next auto-save.
+  - Changing a level option reached the server within 2 s.
+  - A wrong password shows "Invalid email or password".
+- **Also:** opening `/` now redirects through `next.config.ts` instead of a
+  page. The old way printed an error on every dev reload under Cache
+  Components.
+- **Limits, for later:**
+  - **It only runs on this computer for now.** An account only follows you
+    to another device once the site is hosted somewhere.
+    - Hosting needs a server with a disk that persists, for the SQLite file.
+    - Or, on serverless hosting such as Vercel, a hosted database such as
+      Postgres instead. Better Auth supports that, and `player-data.ts` is
+      small.
+    - Set `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` there.
+  - **No email check or password reset yet.** Both need an email-sending
+    service. Until then, a forgotten password can't be recovered.
+  - **Heat map merging keeps, for each note, the copy with more plays.** If
+    you play offline on two devices, the smaller history for that note is
+    dropped rather than combined.
+- **Nothing new to install.**
+
+## Earlier: combos, longer levels, heat map, Weak spots, ear training
+
+On the `combos-and-training` branch (from `main-game`).
+
+- **Combos.** Every 10 hits in a row (Perfect or Good) raise the multiplier
+  by one, up to ×4; a Miss resets it. Points are multiplied by the combo at
+  the time of each hit. The highway's corner shows "×3 · 24 in a row", and at
+  ×4 the strike line glows amber ("on fire"). Results show the longest
+  streak and "Full combo!". Combos follow the order notes were judged in, so
+  a note called unplayed late still breaks the streak. Settings: `COMBO` in
+  `src/config/timing.ts`.
+- **Longer levels.** Notes per run, level 1 → 10: Easy 12 → 32, Medium
+  40 → 64, Hard 72 → 112, Demon 128 → 256. Hard 10 and Demon 10 now each run
+  about a minute.
+- **Fretboard heat map** (`src/game/note-stats.ts`).
+  - Every real run (Levels, Practice, Weak spots, ear training) records
+    each note's result. Demo runs don't count.
+  - Each note gets a mastery score from 0 to 1 that weighs recent results
+    most: each result moves it 30% of the way to hit or miss.
+  - Colors run red → amber → green; dashed means not played yet.
+  - It's shown in Weak spots, and on the Learn page with a checkbox.
+- **Game modes.** The Game tab now has three:
+  - **Levels**, as before.
+  - **Weak spots**: drills the 8 notes you know least (below 85% mastery),
+    filling in with notes from your current level you haven't played yet.
+    32 notes at 70 BPM, names shown.
+  - **Ear training**: the game plays a note, then listens while you find it.
+    "↑ Higher / ↓ Lower than F1" after a miss, the string after the second
+    miss, and the answer (played again) after the third. 100 / 50 / 25
+    points by try, with a multiplier for first-try answers in a row. Notes
+    come from the level you pick. To work without headphones, it ignores
+    anything played until 1.1 s after its own note, by which time the note
+    has faded. Settings: `src/config/ear-training.ts`.
+- **Checked in the browser (demo mode):**
+  - A Medium 1 run's combo reached ×2 at 12 in a row, with a longest streak
+    of 13, as scripted.
+  - The heat map and Weak spots list matched made-up stats.
+  - An ear training round went exactly as scripted, 7 of 10 on the first
+    try.
+- **Not yet verified:** that the mic doesn't hear the game's own ear-training
+  note through speakers. The demo can't test this. If an answer registers
+  before you play, raise `listenAfterMs`.
+
+### Achievements: proposed, not built
+
+Waiting for you to add or remove some before building.
+
+1. **First Note**: hit your first note.
+2. **Tuned Up**: get all four strings in tune in the tuner.
+3. **Dialed In**: save a calibration.
+4. **Warmed Up**: 10 in a row (reach ×2).
+5. **On Fire**: reach ×4.
+6. **Unstoppable**: 50 in a row.
+7. **Full Combo**: finish a level with no misses.
+8. **Perfectionist**: finish a level with every note Perfect.
+9. **Clean Hands**: finish a level without a single buzzing note.
+10. **Metronome**: average timing within ±5 ms over a run of 30+ notes.
+11. **Easy Does It**: clear Easy 10.
+12. **Getting Serious**: clear Medium 10.
+13. **Hard Rock**: clear Hard 10.
+14. **Demon Slayer**: clear Demon 1.
+15. **Demon Lord**: 3 stars on Demon 10.
+16. **Star Collector**: earn 30 stars.
+17. **All the Stars**: earn all 120 stars.
+18. **Know Your E**: every note on the E string, to fret 12, solid green on the heat map.
+19. **First Position**: every note on frets 0–5 solid green.
+20. **Whole Neck**: every note to fret 12 solid green.
+21. **No Weak Spots**: finish a Weak spots run with 90% or more.
+22. **Good Ears**: 10 of 10 on the first try in an ear training round.
+23. **Golden Ears**: 10 of 10 on the first try on a Hard or Demon round.
+24. **Ear Streak**: 25 first-try answers in a row, across rounds.
+25. **Daily Practice**: play on 3 days in a row.
+26. **Weekly Habit**: play on 7 days in a row.
+27. **Marathon**: play 1,000 notes in total.
+28. **Night Owl**: finish a run after midnight.
+
+## Earlier: string tuner, Game tab, difficulty curve, buzz, smoother scrolling
 
 On the `main-game` branch (from `note-highway`).
 

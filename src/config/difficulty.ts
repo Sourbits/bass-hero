@@ -23,7 +23,7 @@ export interface TierConfig {
    */
   minJump: [number, number];
   name: string;
-  /** Notes per run. */
+  /** Notes per run: later levels run longer. */
   notes: [number, number];
   /**
    * Every note the tier uses, as string and fret ("E3" is the E string's 3rd
@@ -65,7 +65,7 @@ export const TIERS: Record<TierId, TierConfig> = {
     maxJump: [1, 1],
     minJump: [0.3, 0.5],
     name: "Demon",
-    notes: [32, 48],
+    notes: [128, 256],
     pool: DEMON_POOL,
     showFretboard: false,
     showFretHints: false,
@@ -80,7 +80,7 @@ export const TIERS: Record<TierId, TierConfig> = {
     maxJump: [0.5, 1],
     minJump: [0, 0],
     name: "Easy",
-    notes: [10, 16],
+    notes: [12, 32],
     pool: EASY_POOL,
     showFretboard: true,
     showFretHints: true,
@@ -94,7 +94,7 @@ export const TIERS: Record<TierId, TierConfig> = {
     maxJump: [0.6, 1],
     minJump: [0.1, 0.35],
     name: "Hard",
-    notes: [20, 28],
+    notes: [72, 112],
     pool: HARD_POOL,
     showFretboard: false,
     showFretHints: false,
@@ -108,7 +108,7 @@ export const TIERS: Record<TierId, TierConfig> = {
     maxJump: [0.4, 1],
     minJump: [0, 0.25],
     name: "Medium",
-    notes: [16, 20],
+    notes: [40, 64],
     pool: MEDIUM_POOL,
     showFretboard: true,
     showFretHints: false,

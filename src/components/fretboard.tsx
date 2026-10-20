@@ -2,6 +2,7 @@
 
 import { memo, useCallback } from "react";
 import { STRING_COLORS } from "@/components/string-colors";
+import type { NoteStat, NoteStats } from "@/game/note-stats";
 import { type Position, positionKey, positionName } from "@/game/positions";
 import { type BassString, STRINGS } from "@/instrument/bass";
 
@@ -17,6 +18,11 @@ const MARKERS: Record<number, string> = {
 interface FretboardProps {
   /** Highest fret to show. */
   frets: number;
+  /**
+   * Heat map mode: color each note by how well you know it, from red (often
+   * missed) to green (solid). Notes not played yet are grey.
+   */
+  heat?: NoteStats;
   /** Positions shown in color; the rest are faint. Leave out to color all. */
   highlighted?: Set<string>;
   /** Called when a note is tapped. Leave out for a fretboard you only read. */
@@ -25,12 +31,34 @@ interface FretboardProps {
   tapMode?: "hear" | "toggle";
 }
 
+/** Red for a note often missed, through amber, to green for a solid one. */
+export function heatColor(mastery: number) {
+  return `hsl(${Math.round(mastery * 120)} 75% 38%)`;
+}
+
+function heatStyle(stat: NoteStat | undefined): React.CSSProperties {
+  if (!stat) {
+    return { borderColor: "var(--border)", borderStyle: "dashed" };
+  }
+  const color = heatColor(stat.mastery);
+  return { backgroundColor: color, borderColor: color, color: "#ffffff" };
+}
+
+function heatLabel(stat: NoteStat | undefined) {
+  if (!stat) {
+    return "not played yet";
+  }
+  return `${Math.round(stat.mastery * 100)}% known, ${stat.hits} of ${stat.attempts} hit`;
+}
+
 function NoteCell({
+  heat,
   highlighted,
   onTap,
   position,
   tapMode,
 }: {
+  heat?: NoteStats;
   highlighted: boolean;
   onTap?: (position: Position) => void;
   position: Position;
@@ -41,23 +69,28 @@ function NoteCell({
   const rest = name.slice(1).replace("#", "♯");
   const where = position.fret === 0 ? "open" : `fret ${position.fret}`;
   const tap = useCallback(() => onTap?.(position), [onTap, position]);
+  const stat = heat?.[positionKey(position)];
 
   // Natural notes are solid; sharps are outlined, so the seven plain note
   // names stand out.
   const color = STRING_COLORS[position.string];
   const sharp = name.includes("#");
   let style: React.CSSProperties = { borderColor: "transparent" };
-  if (highlighted) {
+  if (heat) {
+    style = heatStyle(stat);
+  } else if (highlighted) {
     style = sharp
       ? { borderColor: color, color }
       : { backgroundColor: color, borderColor: color, color: "#ffffff" };
   }
+  const label = `${name}, ${position.string} string, ${where}${heat ? `: ${heatLabel(stat)}` : ""}`;
   const pill = (
     <span
       className={`inline-flex h-8 min-w-9 items-center justify-center rounded-full border-2 bg-background px-1.5 font-semibold text-sm tabular-nums ${
-        highlighted ? "" : "text-muted-foreground"
+        highlighted || (heat && stat) ? "" : "text-muted-foreground"
       }`}
       style={style}
+      title={heat ? heatLabel(stat) : undefined}
     >
       {letter}
       <span className="text-[0.7em]">{rest}</span>
@@ -69,7 +102,7 @@ function NoteCell({
   }
   return (
     <button
-      aria-label={`${name}, ${position.string} string, ${where}`}
+      aria-label={label}
       aria-pressed={tapMode === "toggle" ? highlighted : undefined}
       className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring"
       onClick={tap}
@@ -87,6 +120,7 @@ function NoteCell({
  */
 function FretboardView({
   frets,
+  heat,
   highlighted,
   onTap,
   tapMode = "hear",
@@ -120,6 +154,7 @@ function FretboardView({
                     <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
                     <div className="relative">
                       <NoteCell
+                        heat={heat}
                         highlighted={
                           highlighted
                             ? highlighted.has(positionKey(position))

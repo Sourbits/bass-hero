@@ -53,6 +53,15 @@ export const SCORING = {
   perfect: 100,
 };
 
+/**
+ * Combos: every `notesPerStep` hits in a row (Perfect or Good) raise the
+ * score multiplier by one, up to `maxMultiplier`. A Miss resets it.
+ */
+export const COMBO = {
+  maxMultiplier: 4,
+  notesPerStep: 10,
+};
+
 export const CALIBRATION = {
   /** Beats you play along to; the result is the median over these. */
   beats: 16,

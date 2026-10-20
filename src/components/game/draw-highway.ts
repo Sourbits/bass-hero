@@ -22,6 +22,7 @@ export interface HighwayGem {
 const SURFACE = "#18181b";
 const LANE_LINE = "#3f3f46";
 const MISSED = "#71717a";
+const FIRE = "#f59e0b";
 const BURST_MS = 320;
 const ALL_LANES: ReadonlySet<BassString> = new Set(STRINGS);
 
@@ -112,15 +113,19 @@ function drawBeatLines(
 function drawStrikeLine(
   context: CanvasRenderingContext2D,
   geometry: HighwayGeometry,
-  { activeLanes, fontFamily, showLanes }: StrikeOptions
+  { activeLanes, fontFamily, onFire, showLanes }: StrikeOptions
 ) {
   const { centerX, halfWidth, radius, strikeY } = geometry;
-  context.strokeStyle = "rgba(255, 255, 255, 0.55)";
-  context.lineWidth = 3;
+  // On fire: the strike line glows amber.
+  context.strokeStyle = onFire ? FIRE : "rgba(255, 255, 255, 0.55)";
+  context.lineWidth = onFire ? 5 : 3;
+  context.shadowColor = FIRE;
+  context.shadowBlur = onFire ? 18 : 0;
   context.beginPath();
   context.moveTo(centerX - halfWidth, strikeY);
   context.lineTo(centerX + halfWidth, strikeY);
   context.stroke();
+  context.shadowBlur = 0;
 
   if (!showLanes) {
     return;
@@ -296,6 +301,7 @@ function drawGems(
 interface StrikeOptions {
   activeLanes: ReadonlySet<BassString>;
   fontFamily: string;
+  onFire: boolean;
   showLanes: boolean;
 }
 
@@ -309,6 +315,8 @@ export interface DrawOptions {
   gems: HighwayGem[];
   /** The clock time to draw, or null to draw an empty highway. */
   nowMs: number | null;
+  /** At the top combo multiplier: the strike line glows. */
+  onFire?: boolean;
   showLanes: boolean;
 }
 
@@ -323,6 +331,7 @@ export function drawHighway(
     fontFamily,
     gems,
     nowMs,
+    onFire = false,
     showLanes,
   }: DrawOptions
 ) {
@@ -331,7 +340,12 @@ export function drawHighway(
   if (nowMs !== null) {
     drawBeatLines(context, geometry, beatTimesMs, nowMs);
   }
-  drawStrikeLine(context, geometry, { activeLanes, fontFamily, showLanes });
+  drawStrikeLine(context, geometry, {
+    activeLanes,
+    fontFamily,
+    onFire,
+    showLanes,
+  });
   if (nowMs !== null) {
     drawGems(context, geometry, { burstStarts, fontFamily, gems, nowMs });
   }

@@ -49,7 +49,7 @@ describe("the start of the curve", () => {
     expect(settings.positions.map(positionName)).toEqual(["E1", "A1"]);
     expect(settings.bpm).toBe(50);
     expect(settings.beatsPerNote).toBe(2);
-    expect(settings.notes).toBe(10);
+    expect(settings.notes).toBe(12);
     expect(settings.showFretHints).toBe(true);
   });
 });
@@ -73,6 +73,18 @@ describe("the whole curve", () => {
         }
       }
     }
+  });
+
+  test("runs get longer, and last about a minute by the top", () => {
+    const counts = EVERY_LEVEL.map((level) => levelSettings(level).notes);
+    const seconds = (level: Level) => {
+      const { beatsPerNote, bpm, notes } = levelSettings(level);
+      return (notes * beatsPerNote * 60) / bpm;
+    };
+
+    expect(counts).toEqual([...counts].sort((a, b) => a - b));
+    expect(seconds({ level: 10, tier: "hard" })).toBeGreaterThan(50);
+    expect(seconds({ level: 10, tier: "demon" })).toBeGreaterThan(50);
   });
 
   test("never asks for notes closer than 150 ms, which detection needs", () => {

@@ -169,8 +169,12 @@ describe("summarize", () => {
     expect(summary).toEqual({
       averageOffsetMs: -40,
       counts: { good: 1, miss: 1, perfect: 1 },
+      fullCombo: false,
       judged: 3,
+      maxStreak: 2,
+      multiplier: 1,
       score: 150,
+      streak: 0,
     });
   });
 

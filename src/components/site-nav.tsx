@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAccount } from "@/components/account/account-provider";
 
 const TABS = [
   { href: "/game", label: "Game" },
@@ -14,6 +15,8 @@ const TABS = [
 /** The tabs along the top of every page. */
 export function SiteNav() {
   const pathname = usePathname();
+  const { loading, user } = useAccount();
+  const onAccount = pathname === "/account";
   return (
     <header className="sticky top-0 z-20 border-b bg-background/90 backdrop-blur">
       <nav
@@ -40,6 +43,15 @@ export function SiteNav() {
             </Link>
           );
         })}
+        <Link
+          aria-current={onAccount ? "page" : undefined}
+          className={`ml-auto shrink-0 rounded-full border px-3 py-1 text-sm transition-colors ${
+            onAccount ? "bg-foreground text-background" : "hover:bg-muted"
+          } ${loading ? "invisible" : ""}`}
+          href="/account"
+        >
+          {user ? user.name : "Sign in"}
+        </Link>
       </nav>
     </header>
   );

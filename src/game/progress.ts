@@ -1,7 +1,8 @@
 import { LEVELS_PER_TIER, TIER_ORDER, type TierId } from "@/config/difficulty";
 import { type Level, starsFor } from "./difficulty";
+import { markLocalChange } from "./storage-events";
 
-const STORAGE_KEY = "bass-hero:progress";
+export const PROGRESS_STORAGE_KEY = "bass-hero:progress";
 
 export interface LevelRecord {
   /** Best share of notes hit (Perfect or Good), from 0 to 1. */
@@ -82,20 +83,57 @@ function isLevel(value: unknown): value is Level {
   );
 }
 
+/** Reads progress from saved JSON, falling back to a fresh start. */
+export function parseProgress(value: unknown): Progress {
+  const saved =
+    value && typeof value === "object" ? (value as Partial<Progress>) : null;
+  const records: Record<string, LevelRecord> = {};
+  if (saved?.records && typeof saved.records === "object") {
+    for (const [key, record] of Object.entries(saved.records)) {
+      if (isLevelRecord(record) && LEVEL_KEY.test(key)) {
+        records[key] = record;
+      }
+    }
+  }
+  const options: Partial<GameOptions> =
+    saved?.options && typeof saved.options === "object" ? saved.options : {};
+  return {
+    current: isLevel(saved?.current) ? saved.current : NEW_PROGRESS.current,
+    options: {
+      countBuzz: options.countBuzz ?? NEW_PROGRESS.options.countBuzz,
+      guideTone: options.guideTone ?? NEW_PROGRESS.options.guideTone,
+      showFretboardAlways:
+        options.showFretboardAlways ?? NEW_PROGRESS.options.showFretboardAlways,
+    },
+    records,
+  };
+}
+
+const LEVEL_KEY = /^(easy|medium|hard|demon)-([1-9]|10)$/;
+
+function isLevelRecord(value: unknown): value is LevelRecord {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const { bestHitRate, bestScore, stars } = value as Partial<LevelRecord>;
+  return (
+    typeof bestHitRate === "number" &&
+    bestHitRate >= 0 &&
+    bestHitRate <= 1 &&
+    typeof bestScore === "number" &&
+    bestScore >= 0 &&
+    typeof stars === "number" &&
+    stars >= 0 &&
+    stars <= 3
+  );
+}
+
 /** Progress saved in this browser, or a fresh start. */
 export function loadProgress(): Progress {
   try {
-    const saved = JSON.parse(
-      window.localStorage.getItem(STORAGE_KEY) ?? "null"
-    ) as Partial<Progress> | null;
-    return {
-      current: isLevel(saved?.current) ? saved.current : NEW_PROGRESS.current,
-      options: { ...NEW_PROGRESS.options, ...saved?.options },
-      records:
-        saved?.records && typeof saved.records === "object"
-          ? saved.records
-          : {},
-    };
+    return parseProgress(
+      JSON.parse(window.localStorage.getItem(PROGRESS_STORAGE_KEY) ?? "null")
+    );
   } catch {
     return NEW_PROGRESS;
   }
@@ -103,8 +141,9 @@ export function loadProgress(): Progress {
 
 export function saveProgress(progress: Progress) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
   } catch {
     // Storage can be blocked, for example in a private window.
   }
+  markLocalChange();
 }

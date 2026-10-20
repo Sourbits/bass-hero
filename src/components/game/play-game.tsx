@@ -5,7 +5,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { playNote } from "@/audio/play-note";
 import { Fretboard } from "@/components/fretboard";
 import { isDemoMode } from "@/components/game/audio-session";
-import { beatTimes, ScoreBar, toGems } from "@/components/game/game-parts";
+import {
+  beatTimes,
+  comboOf,
+  ScoreBar,
+  toGems,
+} from "@/components/game/game-parts";
 import { NoteHighway } from "@/components/game/note-highway";
 import { type RunPhase, useGameRun } from "@/components/game/use-game-run";
 import { Button } from "@/components/ui/button";
@@ -18,6 +23,7 @@ import {
 import { type Position, positionKey, positionMidi } from "@/game/positions";
 import { loadPractice, savePractice } from "@/game/practice-setting";
 import { type ScoreSummary, summarize } from "@/game/score";
+import { onDataReplaced } from "@/game/storage-events";
 import { loadTempo, saveTempo, TEMPO } from "@/game/tempo-setting";
 import { STRINGS } from "@/instrument/bass";
 import { describeOffset } from "@/timing/describe";
@@ -48,14 +54,19 @@ export function PlayGame() {
   const [setId, setSetId] = useState(NOTE_SETS[0]?.id ?? "");
   const [customKeys, setCustomKeys] = useState<Set<string>>(new Set());
 
-  // Settings live in the browser, so read them after hydration.
+  // Settings live in the browser, so read them after hydration, and again
+  // whenever they're replaced from the account.
   useEffect(() => {
-    setBpm(loadTempo());
     setLatencyOffsetMs(loadLatencyOffset());
     setDemo(isDemoMode());
-    const practice = loadPractice();
-    setSetId(practice.setId);
-    setCustomKeys(new Set(practice.customKeys));
+    const load = () => {
+      setBpm(loadTempo());
+      const practice = loadPractice();
+      setSetId(practice.setId);
+      setCustomKeys(new Set(practice.customKeys));
+    };
+    load();
+    return onDataReplaced(load);
   }, []);
 
   const noteSet = useMemo(
@@ -111,7 +122,7 @@ export function PlayGame() {
 
   const { error, feedback, getNow, judgments, notes, onFrame, phase, playing } =
     run;
-  const summary = summarize(judgments);
+  const summary = summarize(judgments, run.order);
   const positions = noteSet?.positions ?? [];
   let buttonLabel = phase === "finished" ? "Play again" : "Start";
   if (playing) {
@@ -133,6 +144,7 @@ export function PlayGame() {
 
       <NoteHighway
         beatTimesMs={beatTimes(notes, run.bpm)}
+        combo={comboOf(summary)}
         feedback={feedback}
         gems={toGems(notes, judgments)}
         getNow={getNow}
@@ -271,7 +283,9 @@ function RunSummary({
       <p>
         {summary.counts.perfect} Perfect, {summary.counts.good} Good,{" "}
         {summary.counts.miss} Miss, out of {total} notes. Score{" "}
-        {summary.score.toLocaleString("en-US")}.
+        {summary.score.toLocaleString("en-US")}. Longest streak{" "}
+        {summary.maxStreak}
+        {summary.fullCombo ? ": a full combo!" : "."}
       </p>
       <p className="text-muted-foreground">
         {average === null

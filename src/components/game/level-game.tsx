@@ -5,7 +5,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { playNote } from "@/audio/play-note";
 import { Fretboard } from "@/components/fretboard";
 import { isDemoMode } from "@/components/game/audio-session";
-import { beatTimes, ScoreBar, toGems } from "@/components/game/game-parts";
+import {
+  beatTimes,
+  comboOf,
+  ScoreBar,
+  toGems,
+} from "@/components/game/game-parts";
 import { NoteHighway } from "@/components/game/note-highway";
 import {
   type FinishedRun,
@@ -47,6 +52,7 @@ import {
 } from "@/game/progress";
 import { hitRate, type MissedNote, missedNotes } from "@/game/review";
 import { type ScoreSummary, summarize } from "@/game/score";
+import { onDataReplaced } from "@/game/storage-events";
 import { describeOffset } from "@/timing/describe";
 import type { MissReason } from "@/timing/judge";
 
@@ -195,11 +201,14 @@ function LevelButton({
   );
 }
 
-function LevelPicker({
+export function LevelPicker({
+  details = true,
   disabled,
   onChoose,
   progress,
 }: {
+  /** Show the level's tempo, length and new notes under the picker. */
+  details?: boolean;
   disabled: boolean;
   onChoose: (level: Level) => void;
   progress: Progress;
@@ -238,16 +247,20 @@ function LevelPicker({
           );
         })}
       </div>
-      <p className="text-muted-foreground text-sm">
-        <span className="font-medium text-foreground">
-          {TIERS[current.tier].name} {current.level}:
-        </span>{" "}
-        {settings.positions.length} notes to know,{" "}
-        {spacingText(settings.beatsPerNote)} at {settings.bpm} BPM,{" "}
-        {movementText(settings)}. {settings.notes} notes per run.{" "}
-        {TIERS[current.tier].description}
-      </p>
-      <NewNotes settings={settings} />
+      {details ? (
+        <>
+          <p className="text-muted-foreground text-sm">
+            <span className="font-medium text-foreground">
+              {TIERS[current.tier].name} {current.level}:
+            </span>{" "}
+            {settings.positions.length} notes to know,{" "}
+            {spacingText(settings.beatsPerNote)} at {settings.bpm} BPM,{" "}
+            {movementText(settings)}. {settings.notes} notes per run.{" "}
+            {TIERS[current.tier].description}
+          </p>
+          <NewNotes settings={settings} />
+        </>
+      ) : null}
     </fieldset>
   );
 }
@@ -367,6 +380,12 @@ function RunResultCard({
         {score.toLocaleString("en-US")}.
         {result.isBest ? " New best for this level!" : ""}
       </p>
+      <p className="font-medium">
+        Longest streak: {result.summary.maxStreak}
+        {result.summary.fullCombo ? (
+          <span className="text-amber-500"> · Full combo!</span>
+        ) : null}
+      </p>
       <p className="text-muted-foreground text-sm">
         {averageOffsetMs === null
           ? "No notes were hit."
@@ -399,10 +418,17 @@ export function LevelGame() {
   const progressRef = useRef(progress);
   progressRef.current = progress;
 
-  // Progress lives in the browser, so read it after hydration.
+  // Progress lives in the browser, so read it after hydration, and again
+  // whenever it's replaced from the account.
   useEffect(() => {
-    setProgress(loadProgress());
     setDemo(isDemoMode());
+    const load = () => {
+      const loaded = loadProgress();
+      progressRef.current = loaded;
+      setProgress(loaded);
+    };
+    load();
+    return onDataReplaced(load);
   }, []);
 
   const update = useCallback((change: (previous: Progress) => Progress) => {
@@ -443,9 +469,13 @@ export function LevelGame() {
           countBuzz: choices.countBuzz,
         },
         guideTone: choices.guideTone,
-        onFinish: ({ judgments: judged, notes: played }: FinishedRun) => {
+        onFinish: ({
+          judgments: judged,
+          notes: played,
+          order: judgedOrder,
+        }: FinishedRun) => {
           const rate = hitRate(judged, played.length);
-          const summary = summarize(judged);
+          const summary = summarize(judged, judgedOrder);
           const before = progressRef.current.records[levelKey(level)];
           setResult({
             hitRate: rate,
@@ -492,6 +522,7 @@ export function LevelGame() {
     ...settings.positions.map((position) => position.fret)
   );
   const { feedback, getNow, judgments, notes, onFrame, phase, playing } = run;
+  const summary = summarize(judgments, run.order);
   const showMap = settings.showFretboard || options.showFretboardAlways;
   let buttonLabel = phase === "finished" ? "Play again" : "Start";
   if (playing) {
@@ -509,13 +540,14 @@ export function LevelGame() {
       <NoteHighway
         activeLanes={activeLanes}
         beatTimesMs={beatTimes(notes, run.bpm)}
+        combo={comboOf(summary)}
         feedback={feedback}
         gems={toGems(notes, judgments, { fretHints: settings.showFretHints })}
         getNow={getNow}
         onFrame={onFrame}
       />
 
-      <ScoreBar summary={summarize(judgments)} />
+      <ScoreBar summary={summary} />
 
       <Button
         className="w-full"

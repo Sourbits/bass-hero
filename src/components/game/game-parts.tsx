@@ -1,6 +1,7 @@
 import { type HighwayGem, splitNoteName } from "@/components/game/draw-highway";
 import type { HighwayFeedback } from "@/components/game/note-highway";
 import { STRING_COLORS } from "@/components/string-colors";
+import { COMBO } from "@/config/timing";
 import type { ScheduledNote } from "@/game/chart";
 import type { ScoreSummary } from "@/game/score";
 import { describeJudgment } from "@/timing/describe";
@@ -74,11 +75,20 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
-/** The running score and the count of each rating. */
+/** What the highway shows of the combo. */
+export function comboOf({ multiplier, streak }: ScoreSummary) {
+  return { multiplier, onFire: multiplier === COMBO.maxMultiplier, streak };
+}
+
+/** The running score, the combo, and the count of each rating. */
 export function ScoreBar({ summary }: { summary: ScoreSummary }) {
   return (
-    <div className="grid grid-cols-4 gap-2 rounded-2xl border p-4">
+    <div className="grid grid-cols-5 gap-2 rounded-2xl border p-4">
       <Stat label="Score" value={summary.score.toLocaleString("en-US")} />
+      <Stat
+        label={`${summary.streak} in a row`}
+        value={`×${summary.multiplier}`}
+      />
       <Stat label="Perfect" value={summary.counts.perfect} />
       <Stat label="Good" value={summary.counts.good} />
       <Stat label="Miss" value={summary.counts.miss} />

@@ -20,6 +20,8 @@ interface NoteHighwayProps {
   activeLanes?: ReadonlySet<BassString>;
   /** Where to draw beat lines, on the game clock. */
   beatTimesMs: number[];
+  /** The current combo, shown in the corner; at the top multiplier, on fire. */
+  combo?: { multiplier: number; onFire: boolean; streak: number };
   feedback: HighwayFeedback | null;
   gems: HighwayGem[];
   /** The game clock, or null when nothing is playing. */
@@ -47,6 +49,7 @@ const TONE_CLASSES: Record<HighwayFeedback["tone"], string> = {
  */
 export function NoteHighway({
   activeLanes,
+  combo,
   beatTimesMs,
   feedback,
   gems,
@@ -57,11 +60,26 @@ export function NoteHighway({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ height: 0, width: 0 });
-  const latest = useRef({ activeLanes, beatTimesMs, gems, onFrame, showLanes });
+  const onFire = combo?.onFire ?? false;
+  const latest = useRef({
+    activeLanes,
+    beatTimesMs,
+    gems,
+    onFire,
+    onFrame,
+    showLanes,
+  });
   const burstStarts = useRef(new Map<string, number>());
   // Looked up once: reading styles every frame can force a style recalc.
   const fontFamily = useRef("sans-serif");
-  latest.current = { activeLanes, beatTimesMs, gems, onFrame, showLanes };
+  latest.current = {
+    activeLanes,
+    beatTimesMs,
+    gems,
+    onFire,
+    onFrame,
+    showLanes,
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -144,6 +162,21 @@ export function NoteHighway({
         ref={canvasRef}
         role="img"
       />
+      {combo && combo.streak > 0 ? (
+        <div
+          className="pointer-events-none absolute top-3 left-4 flex flex-col"
+          key={combo.multiplier}
+        >
+          <span
+            className={`fade-in zoom-in-75 animate-in font-black text-3xl tabular-nums duration-200 ${combo.onFire ? "text-amber-400" : "text-white"}`}
+          >
+            ×{combo.multiplier}
+          </span>
+          <span className="text-xs text-zinc-400 tabular-nums">
+            {combo.streak} in a row{combo.onFire ? " · on fire!" : ""}
+          </span>
+        </div>
+      ) : null}
       {feedback ? (
         <div
           aria-live="polite"
