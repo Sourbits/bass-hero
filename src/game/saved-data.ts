@@ -5,13 +5,14 @@ import {
   parseAchievements,
 } from "./achievements";
 import { type NoteStat, type NoteStats, parseNoteStats } from "./note-stats";
+import { type PlayerSettings, parseSettings } from "./player-settings";
 import { type PracticeSetting, parsePractice } from "./practice-setting";
 import { type LevelRecord, type Progress, parseProgress } from "./progress";
 import { parseTempo } from "./tempo-setting";
 
 /**
  * Everything saved to an account: level progress, achievements, the heat
- * map stats and Practice settings. The latency offset isn't here on purpose: it belongs to
+ * map stats, settings and Practice settings. The latency offset isn't here on purpose: it belongs to
  * a device's mic and speakers, not to the player.
  */
 export interface SavedData {
@@ -19,6 +20,8 @@ export interface SavedData {
   noteStats: NoteStats;
   practice: PracticeSetting | null;
   progress: Progress;
+  /** Null when never changed from the defaults. */
+  settings: PlayerSettings | null;
   tempo: number | null;
   /** When this data last changed, in ms since 1970. */
   updatedAt: number;
@@ -33,6 +36,7 @@ export const EMPTY_SAVED_DATA: SavedData = {
   noteStats: {},
   practice: null,
   progress: parseProgress(null),
+  settings: null,
   tempo: null,
   updatedAt: 0,
   version: 1,
@@ -53,6 +57,7 @@ export function parseSavedData(value: unknown): SavedData | null {
     noteStats: parseNoteStats(raw.noteStats),
     practice: raw.practice ? parsePractice(raw.practice) : null,
     progress: parseProgress(raw.progress),
+    settings: raw.settings ? parseSettings(raw.settings) : null,
     tempo: parseTempo(raw.tempo),
     updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
     version: 1,
@@ -111,6 +116,7 @@ export function mergeSavedData(a: SavedData, b: SavedData): SavedData {
     noteStats: mergeNoteStats(older.noteStats, newer.noteStats),
     practice: newer.practice ?? older.practice,
     progress: { ...newer.progress, records },
+    settings: newer.settings ?? older.settings,
     tempo: newer.tempo ?? older.tempo,
     updatedAt: newer.updatedAt,
     version: 1,

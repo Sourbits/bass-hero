@@ -6,8 +6,12 @@ import type { AudioSource } from "@/audio/audio-source";
 import { createMicrophoneSource } from "@/audio/microphone-source";
 import { createOscillatorSource } from "@/audio/oscillator-source";
 import { describeAudioError } from "@/components/audio-errors";
+import { Kbd } from "@/components/kbd";
+import { useSettings } from "@/components/settings-provider";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
+import { useShortcuts } from "@/components/use-shortcuts";
+import { KEYS } from "@/config/shortcuts";
 import { TIMING } from "@/config/timing";
 import { reportAchievement } from "@/game/achievements";
 import { type BassString, OPEN_STRING_MIDI, STRINGS } from "@/instrument/bass";
@@ -88,6 +92,12 @@ const DIRECTION_TEXT = {
   up: { arrow: "↑", hint: "Tighten the string", label: "Tune up" },
 } as const;
 
+/** E, A, D, G from left to right, or mirrored in left-handed mode. */
+function useStringOrder(): readonly BassString[] {
+  const { leftHanded } = useSettings().settings;
+  return leftHanded ? [...STRINGS].reverse() : STRINGS;
+}
+
 function StringPicker({
   choice,
   onChoose,
@@ -95,7 +105,7 @@ function StringPicker({
   choice: StringChoice;
   onChoose: (choice: StringChoice) => void;
 }) {
-  const choices: StringChoice[] = ["auto", ...STRINGS];
+  const choices: StringChoice[] = ["auto", ...useStringOrder()];
   return (
     <fieldset className="flex w-full flex-col items-center gap-2">
       <legend className="mb-2 text-center text-muted-foreground text-sm">
@@ -218,9 +228,10 @@ function StringStatusRow({
 }: {
   statuses: Partial<Record<BassString, StringTuning>>;
 }) {
+  const order = useStringOrder();
   return (
     <div className="grid w-full grid-cols-4 gap-2">
-      {STRINGS.map((string) => {
+      {order.map((string) => {
         const status = statuses[string];
         let mark = "–";
         if (status) {
@@ -442,6 +453,15 @@ export function Tuner() {
   };
 
   const listening = status.kind === "listening";
+  const pick = (next: StringChoice) => () => choose(next);
+  useShortcuts({
+    [KEYS.start]: status.kind !== "starting" && (listening ? stop : start),
+    [KEYS.tunerAuto]: pick("auto"),
+    a: pick("A"),
+    d: pick("D"),
+    e: pick("E"),
+    g: pick("G"),
+  });
   const buzzing = buzzDb !== null && buzzDb > TIMING.buzzThresholdDb;
   let buzzValue = "–";
   if (buzzDb !== null) {
@@ -476,6 +496,7 @@ export function Tuner() {
         variant={listening ? "outline" : "default"}
       >
         {listening ? "Stop" : "Start"}
+        <Kbd>Space</Kbd>
       </Button>
       <p
         className={`text-center text-sm ${status.kind === "error" ? "text-destructive" : "text-muted-foreground"}`}

@@ -270,3 +270,13 @@ describe("the whole loop, from audio to score", () => {
     });
   });
 });
+
+describe("left-handed highway", () => {
+  test("mirrors the lanes: G on the left, E on the right", () => {
+    const right = highwayGeometry(400, 500);
+    const left = highwayGeometry(400, 500, true);
+    expect(laneX("E", 1, left)).toBeCloseTo(laneX("G", 1, right));
+    expect(laneX("G", 1, left)).toBeCloseTo(laneX("E", 1, right));
+    expect(laneX("A", 0.5, left)).toBeCloseTo(400 - laneX("A", 0.5, right));
+  });
+});

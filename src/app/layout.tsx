@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AccountProvider } from "@/components/account/account-provider";
 import { AchievementToasts } from "@/components/achievement-toasts";
+import { SettingsProvider } from "@/components/settings-provider";
 import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
 
@@ -28,9 +29,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-full flex-col">
         <AccountProvider>
-          <SiteNav />
-          {children}
-          <AchievementToasts />
+          <SettingsProvider>
+            <SiteNav />
+            {children}
+            <AchievementToasts />
+          </SettingsProvider>
         </AccountProvider>
       </body>
     </html>

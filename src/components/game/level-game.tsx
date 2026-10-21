@@ -17,14 +17,17 @@ import {
   type RunPhase,
   useGameRun,
 } from "@/components/game/use-game-run";
+import { Kbd } from "@/components/kbd";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
+import { useShortcuts } from "@/components/use-shortcuts";
 import {
   LEVELS_PER_TIER,
   TIER_ORDER,
   TIERS,
   type TierId,
 } from "@/config/difficulty";
+import { KEYS } from "@/config/shortcuts";
 import { TIMING } from "@/config/timing";
 import {
   generateLevelChart,
@@ -354,6 +357,44 @@ function MissedNotes({ missed }: { missed: MissedNote[] }) {
   );
 }
 
+/**
+ * Space starts, Esc stops, the arrows pick the level before or after, and
+ * Enter plays the next level from the results. Returns what Enter does, if
+ * anything, for the Next level button.
+ */
+function useLevelShortcuts({
+  chooseLevel,
+  current,
+  phase,
+  playCurrent,
+  playNext,
+  stop,
+}: {
+  chooseLevel: (level: Level) => void;
+  current: Level;
+  phase: RunPhase;
+  playCurrent: () => void;
+  playNext: (() => void) | null;
+  stop: () => void;
+}) {
+  const playing = phase === "playing" || phase === "starting";
+  const nextAfterRun = phase === "finished" ? playNext : null;
+  const stepLevel = (delta: number) => {
+    const level = current.level + delta;
+    if (level >= 1 && level <= LEVELS_PER_TIER) {
+      chooseLevel({ level, tier: current.tier });
+    }
+  };
+  useShortcuts({
+    [KEYS.left]: !playing && (() => stepLevel(-1)),
+    [KEYS.nextAfterRun]: nextAfterRun,
+    [KEYS.right]: !playing && (() => stepLevel(1)),
+    [KEYS.start]: !playing && playCurrent,
+    [KEYS.stop]: playing && stop,
+  });
+  return nextAfterRun;
+}
+
 function RunResultCard({
   demo,
   onNext,
@@ -392,7 +433,12 @@ function RunResultCard({
           : `Your hits averaged ${describeOffset(averageOffsetMs)}.`}
         {demo ? " (Demo mode.)" : ""}
       </p>
-      {onNext ? <Button onClick={onNext}>Next level</Button> : null}
+      {onNext ? (
+        <Button onClick={onNext}>
+          Next level
+          <Kbd>Enter</Kbd>
+        </Button>
+      ) : null}
       <MissedNotes missed={result.missed} />
     </section>
   );
@@ -530,6 +576,14 @@ export function LevelGame() {
   if (playing) {
     buttonLabel = "Stop";
   }
+  const nextAfterRun = useLevelShortcuts({
+    chooseLevel,
+    current,
+    phase,
+    playCurrent,
+    playNext: upNext && result?.level === current ? playNext : null,
+    stop: run.stop,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -559,6 +613,7 @@ export function LevelGame() {
         variant={playing ? "outline" : "default"}
       >
         {buttonLabel}
+        <Kbd>{playing ? "Esc" : "Space"}</Kbd>
       </Button>
       <p
         className={`text-center text-sm ${phase === "error" ? "text-destructive" : "text-muted-foreground"}`}
@@ -568,11 +623,7 @@ export function LevelGame() {
       </p>
 
       {result && phase === "finished" ? (
-        <RunResultCard
-          demo={demo}
-          onNext={upNext && result.level === current ? playNext : null}
-          result={result}
-        />
+        <RunResultCard demo={demo} onNext={nextAfterRun} result={result} />
       ) : null}
 
       <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">

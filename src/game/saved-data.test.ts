@@ -37,6 +37,7 @@ describe("parseSavedData", () => {
         hitRate: 0.9,
         score: 1200,
       }),
+      settings: { leftHanded: true },
       tempo: 85,
       updatedAt: 1_700_000_000_000,
     });
@@ -131,6 +132,15 @@ describe("mergeSavedData", () => {
       expect(merged.tempo).toBe(90);
       expect(merged.updatedAt).toBe(200);
     }
+  });
+
+  test("left-handed mode comes from whichever copy set it last", () => {
+    const merged = mergeSavedData(
+      data({ settings: { leftHanded: true }, updatedAt: 1 }),
+      data({ settings: null, updatedAt: 2 })
+    );
+
+    expect(merged.settings).toEqual({ leftHanded: true });
   });
 
   test("doesn't lose a setting the newer copy never had", () => {

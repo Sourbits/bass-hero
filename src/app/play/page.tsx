@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PlayGame } from "@/components/game/play-game";
+import { Handed } from "@/components/handed";
 
 export const metadata: Metadata = {
   description: "Play bass notes in time as they come down the highway.",
@@ -13,7 +14,8 @@ export default function PlayPage() {
         <h1 className="font-semibold text-3xl">Practice</h1>
         <p className="text-muted-foreground">
           Free play: pick any set of notes and a tempo. Notes come toward you,
-          one lane per string: E, A, D, G from left to right.
+          one lane per string: <Handed left="G, D, A, E" right="E, A, D, G" />{" "}
+          from left to right.
         </p>
       </header>
       <PlayGame />

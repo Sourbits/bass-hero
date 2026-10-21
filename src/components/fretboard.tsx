@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback } from "react";
+import { useSettings } from "@/components/settings-provider";
 import { STRING_COLORS } from "@/components/string-colors";
 import type { NoteStat, NoteStats } from "@/game/note-stats";
 import { type Position, positionKey, positionName } from "@/game/positions";
@@ -89,6 +90,7 @@ function NoteCell({
       className={`inline-flex h-8 min-w-9 items-center justify-center rounded-full border-2 bg-background px-1.5 font-semibold text-sm tabular-nums ${
         highlighted || (heat && stat) ? "" : "text-muted-foreground"
       }`}
+      dir="ltr"
       style={style}
       title={heat ? heatLabel(stat) : undefined}
     >
@@ -115,8 +117,8 @@ function NoteCell({
 
 /**
  * A bass neck drawn the way tab is written: the G string on top, E at the
- * bottom, the nut on the left. Each note is colored by its string, matching
- * the lanes on the highway.
+ * bottom, the nut on the left (on the right in left-handed mode). Each note
+ * is colored by its string, matching the lanes on the highway.
  */
 function FretboardView({
   frets,
@@ -127,28 +129,33 @@ function FretboardView({
 }: FretboardProps) {
   const columns = Array.from({ length: frets + 1 }, (_, fret) => fret);
   const rows: BassString[] = [...STRINGS].reverse();
+  // Right to left mirrors the table: frets run leftward from a nut on the
+  // right. The sides below are logical (start, end) so they follow.
+  const { leftHanded } = useSettings().settings;
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto" dir={leftHanded ? "rtl" : "ltr"}>
       <table className="w-full border-collapse text-center">
         <tbody>
           {rows.map((string) => (
             <tr key={string}>
               <th
-                className="sticky left-0 z-10 bg-background pr-2 text-left font-medium text-sm sm:w-16"
+                className="sticky start-0 z-10 bg-background pe-2 text-start font-medium text-sm sm:w-16"
                 scope="row"
               >
-                <span style={{ color: STRING_COLORS[string] }}>{string}</span>
-                <span className="hidden text-muted-foreground text-xs sm:inline">
-                  {" "}
-                  string
+                <span dir="ltr">
+                  <span style={{ color: STRING_COLORS[string] }}>{string}</span>
+                  <span className="hidden text-muted-foreground text-xs sm:inline">
+                    {" "}
+                    string
+                  </span>
                 </span>
               </th>
               {columns.map((fret) => {
                 const position = { fret, string };
                 return (
                   <td
-                    className={`relative min-w-11 py-1 ${fret === 0 ? "border-foreground border-r-4" : "border-border border-r"}`}
+                    className={`relative min-w-11 py-1 ${fret === 0 ? "border-foreground border-e-4" : "border-border border-e"}`}
                     key={fret}
                   >
                     <div className="absolute inset-x-0 top-1/2 h-px bg-border" />
@@ -172,7 +179,7 @@ function FretboardView({
           ))}
           <tr className="text-muted-foreground text-xs">
             <th
-              className="sticky left-0 z-10 bg-background pr-2 text-left font-normal"
+              className="sticky start-0 z-10 bg-background pe-2 text-start font-normal"
               scope="row"
             >
               Fret

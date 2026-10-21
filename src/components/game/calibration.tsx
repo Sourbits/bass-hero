@@ -12,7 +12,10 @@ import {
   type HighwayFeedback,
   NoteHighway,
 } from "@/components/game/note-highway";
+import { Kbd } from "@/components/kbd";
 import { Button } from "@/components/ui/button";
+import { releaseFocus, useShortcuts } from "@/components/use-shortcuts";
+import { KEYS } from "@/config/shortcuts";
 import { CALIBRATION } from "@/config/timing";
 import { reportAchievement } from "@/game/achievements";
 import type { DemoPluck } from "@/game/demo";
@@ -128,6 +131,7 @@ export function Calibration() {
 
   const start = async () => {
     setPhase("starting");
+    releaseFocus();
     setError("");
     setResult(null);
     setSaveMessage("");
@@ -207,6 +211,10 @@ export function Calibration() {
   };
 
   const running = phase === "running" || phase === "starting";
+  useShortcuts({
+    [KEYS.start]: !running && start,
+    [KEYS.stop]: phase === "running" && stop,
+  });
   const manualValue = Number(manualOffset);
   let buttonLabel = phase === "done" ? "Try again" : "Start";
   if (running) {
@@ -252,6 +260,7 @@ export function Calibration() {
         variant={running ? "outline" : "default"}
       >
         {buttonLabel}
+        <Kbd>{running ? "Esc" : "Space"}</Kbd>
       </Button>
 
       {phase === "error" && (

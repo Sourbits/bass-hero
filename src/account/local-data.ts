@@ -3,6 +3,7 @@ import {
   loadAchievements,
 } from "@/game/achievements";
 import { loadNoteStats, NOTE_STATS_STORAGE_KEY } from "@/game/note-stats";
+import { loadSettings, SETTINGS_STORAGE_KEY } from "@/game/player-settings";
 import { loadPractice, PRACTICE_STORAGE_KEY } from "@/game/practice-setting";
 import { loadProgress, PROGRESS_STORAGE_KEY } from "@/game/progress";
 import type { SavedData } from "@/game/saved-data";
@@ -15,6 +16,7 @@ const ACCOUNT_KEYS = [
   NOTE_STATS_STORAGE_KEY,
   PRACTICE_STORAGE_KEY,
   PROGRESS_STORAGE_KEY,
+  SETTINGS_STORAGE_KEY,
   TEMPO_STORAGE_KEY,
   UPDATED_AT_KEY,
 ];
@@ -40,6 +42,7 @@ export function collectLocalData(): SavedData {
     noteStats: loadNoteStats(),
     practice: has(PRACTICE_STORAGE_KEY) ? loadPractice() : null,
     progress: loadProgress(),
+    settings: has(SETTINGS_STORAGE_KEY) ? loadSettings() : null,
     tempo: has(TEMPO_STORAGE_KEY) ? loadTempo() : null,
     updatedAt,
     version: 1,
@@ -74,6 +77,10 @@ export function replaceLocalData(data: SavedData) {
       data.practice ? JSON.stringify(data.practice) : null,
     ],
     [PROGRESS_STORAGE_KEY, JSON.stringify(data.progress)],
+    [
+      SETTINGS_STORAGE_KEY,
+      data.settings ? JSON.stringify(data.settings) : null,
+    ],
     [TEMPO_STORAGE_KEY, data.tempo === null ? null : String(data.tempo)],
     [UPDATED_AT_KEY, String(data.updatedAt)],
   ]);

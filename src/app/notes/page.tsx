@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Handed } from "@/components/handed";
 import { LearnFretboard } from "@/components/learn-notes";
 import { STRING_COLORS } from "@/components/string-colors";
 import { STRINGS } from "@/instrument/bass";
@@ -23,8 +24,8 @@ export default function NotesPage() {
         <h2 className="font-semibold text-xl">The neck</h2>
         <p className="text-muted-foreground text-sm">
           Drawn like tab: the thinnest string (G) on top, the thickest (E) at
-          the bottom, and the nut on the left. Natural notes are solid; sharps
-          are outlined.
+          the bottom, and the nut on the <Handed left="right" right="left" />.
+          Natural notes are solid; sharps are outlined.
         </p>
         <LearnFretboard />
       </section>
@@ -39,8 +40,12 @@ export default function NotesPage() {
               {index < STRINGS.length - 1 ? ", " : ""}
             </span>
           ))}
-          . On the game's highway each string has its own lane, in the same
-          order from left to right, with the same colors as here.
+          . On the game's highway each string has its own lane,{" "}
+          <Handed
+            left="mirrored for left-handed mode (G, D, A, E from left to right)"
+            right="in the same order from left to right"
+          />
+          , with the same colors as here.
         </p>
       </section>
 

@@ -1,8 +1,61 @@
 # Bass Hero notes
 
-## Latest: achievements
+## Latest: settings, left-handed mode, keyboard shortcuts
 
-On the `achievements` branch (from `combos-and-training`).
+On the `settings-and-shortcuts` branch (from `achievements`).
+
+- **Settings page:** the gear icon at the top right. It has:
+  - **Left-handed mode.**
+  - **The Levels options:** buzz checking, guide tone, always show the
+    fretboard map. They're still under the level picker too.
+  - **This device's latency offset,** with a link to Calibrate.
+  - **A list of every keyboard shortcut.**
+- **Left-handed mode mirrors everything:**
+  - The fretboard: the nut and open strings are on the right, and the frets
+    count up to the left. That covers Learn, the heat map, Practice's
+    custom set, the level map and ear training.
+  - The highway: lanes go G, D, A, E from left to right.
+  - The tuner: the string row and the string picker are mirrored too.
+  - Page text that says "left" or "right" switches with it.
+  - It saves to your account like everything else, so it follows you.
+- **Keyboard shortcuts:**
+  - **Space** starts a run, or plays again. **Esc** stops one. This works
+    in Levels, Weak spots, Ear training, Practice and Calibrate.
+  - **Levels:** ← and → pick the level before or after. **Enter** plays the
+    next level from the results.
+  - **Practice:** ← and → make the tempo slower or faster.
+  - **Ear training:** **R** plays the note again.
+  - **Tuner:** **Space** starts or stops listening. **E, A, D, G** pick a
+    string, and **0** goes back to detecting it.
+  - Buttons show their key as a small hint, on computers only, since phones
+    and tablets have no keyboard.
+  - Shortcuts stay out of the way while you type in a box. Space and Enter
+    on a focused button press it, as usual.
+  - Starting a run takes focus off the button you clicked, so Space mid-run
+    can't press Stop by accident.
+- **Choices I made:**
+  - The arrows change the level within a tier and don't cross tiers.
+  - Space does nothing mid-run, rather than pausing: there's no pause yet.
+  - Keys are in `src/config/shortcuts.ts`, with the list the Settings page
+    shows.
+- **Checked in the browser (demo mode), in left-handed mode:**
+  - The fretboard mirrored, with "G string" labels on the right.
+  - The highway lanes read G, D, A, E, and notes landed in the right lanes.
+  - Keys: ← → changed the level, Space started a run, Esc stopped it, and
+    Enter after a full run started the next level.
+  - Space mid-run, after starting with a mouse click, didn't stop the run.
+  - The tuner's strings mirrored, and G and 0 picked strings.
+  - Practice's arrows changed the tempo.
+- **If the dev site keeps reloading or shows old pages:** Next's dev
+  cache got corrupted. It happened once here, while editing with the server
+  running. Fix: stop the server (Ctrl-C), delete the `.next` folder, and run
+  `bun run dev` again. `.next` is rebuilt automatically, and your progress
+  and accounts aren't in it.
+- **Nothing new to install.**
+
+## Earlier: achievements
+
+On the `achievements` branch (from `combos-and-training`). Committed.
 
 - **39 achievements:** the 28 you approved, plus 11 early ones, so a new
   player unlocks a few in their first sessions.

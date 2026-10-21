@@ -9,6 +9,7 @@ import {
 } from "@/components/game/audio-session";
 import { toFeedback } from "@/components/game/game-parts";
 import type { HighwayFeedback } from "@/components/game/note-highway";
+import { releaseFocus } from "@/components/use-shortcuts";
 import { TIMING, type TimingConfig } from "@/config/timing";
 import type { RunMode } from "@/game/achievement-stats";
 import { reportAchievement } from "@/game/achievements";
@@ -118,6 +119,7 @@ export function useGameRun() {
       onFinish,
     }: RunOptions) => {
       setPhase("starting");
+      releaseFocus();
       onFinishRef.current = onFinish;
       runInfoRef.current = {
         countBuzz: config.countBuzz,

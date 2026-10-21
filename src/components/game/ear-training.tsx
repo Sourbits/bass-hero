@@ -10,10 +10,13 @@ import {
   startAudioSession,
 } from "@/components/game/audio-session";
 import { LevelPicker } from "@/components/game/level-game";
+import { Kbd } from "@/components/kbd";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
+import { releaseFocus, useShortcuts } from "@/components/use-shortcuts";
 import type { TierId } from "@/config/difficulty";
 import { EAR_TRAINING } from "@/config/ear-training";
+import { KEYS } from "@/config/shortcuts";
 import { reportAchievement } from "@/game/achievements";
 import { type Level, levelSettings } from "@/game/difficulty";
 import {
@@ -314,6 +317,7 @@ export function EarTraining() {
   };
 
   const start = useCallback(async () => {
+    releaseFocus();
     setError("");
     const { positions } = levelSettings(progress.current);
     tierRef.current = progress.current.tier;
@@ -355,6 +359,11 @@ export function EarTraining() {
   const prompt = promptsRef.current[index];
   const score = scoreEar(results);
   const poolSize = levelSettings(progress.current).positions.length;
+  useShortcuts({
+    [KEYS.hearAgain]: stage === "listen" && playPrompt,
+    [KEYS.start]: !running && stage !== "starting" && start,
+    [KEYS.stop]: running && stop,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -390,10 +399,12 @@ export function EarTraining() {
           variant={running ? "outline" : "default"}
         >
           {running ? "Stop" : "Start a round"}
+          <Kbd>{running ? "Esc" : "Space"}</Kbd>
         </Button>
         {stage === "listen" ? (
           <Button onClick={playPrompt} size="lg" variant="outline">
             🔊 Hear it again
+            <Kbd>R</Kbd>
           </Button>
         ) : null}
       </div>

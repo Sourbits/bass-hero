@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { drawHighway, type HighwayGem } from "@/components/game/draw-highway";
+import { useSettings } from "@/components/settings-provider";
 import { highwayGeometry, laneX } from "@/game/layout";
 import type { BassString } from "@/instrument/bass";
 
@@ -60,6 +61,7 @@ export function NoteHighway({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState({ height: 0, width: 0 });
+  const { leftHanded } = useSettings().settings;
   const onFire = combo?.onFire ?? false;
   const latest = useRef({
     activeLanes,
@@ -110,17 +112,21 @@ export function NoteHighway({
         canvas.height = Math.round(size.height * ratio);
       }
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      drawHighway(context, highwayGeometry(size.width, size.height), {
-        ...latest.current,
-        burstStarts: burstStarts.current,
-        fontFamily: fontFamily.current,
-        nowMs,
-      });
+      drawHighway(
+        context,
+        highwayGeometry(size.width, size.height, leftHanded),
+        {
+          ...latest.current,
+          burstStarts: burstStarts.current,
+          fontFamily: fontFamily.current,
+          nowMs,
+        }
+      );
       if (nowMs !== null && containerRef.current) {
         containerRef.current.dataset.nowMs = nowMs.toFixed(3);
       }
     },
-    [size]
+    [leftHanded, size]
   );
 
   useEffect(() => {
@@ -141,7 +147,7 @@ export function NoteHighway({
     return () => cancelAnimationFrame(frame);
   }, [draw, getNow]);
 
-  const geometry = highwayGeometry(size.width, size.height);
+  const geometry = highwayGeometry(size.width, size.height, leftHanded);
   // Under the lane's ring, kept clear of the edges so long text fits.
   const feedbackX = Math.min(
     Math.max(

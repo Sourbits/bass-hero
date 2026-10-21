@@ -11,8 +11,11 @@ import {
 import { NoteHighway } from "@/components/game/note-highway";
 import { useGameRun } from "@/components/game/use-game-run";
 import { HeatMap } from "@/components/heat-map";
+import { Kbd } from "@/components/kbd";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
+import { useShortcuts } from "@/components/use-shortcuts";
+import { KEYS } from "@/config/shortcuts";
 import { levelSettings } from "@/game/difficulty";
 import { generateChart } from "@/game/note-sets";
 import { loadNoteStats, type NoteStats, weakSpots } from "@/game/note-stats";
@@ -103,6 +106,11 @@ export function WeakSpots() {
     () => new Set(spots.map((position) => position.string)),
     [spots]
   );
+  const canStart = !playing && phase !== "starting" && spots.length >= 2;
+  useShortcuts({
+    [KEYS.start]: canStart && play,
+    [KEYS.stop]: playing && run.stop,
+  });
   let buttonLabel = phase === "finished" ? "Drill them again" : "Start";
   if (playing) {
     buttonLabel = "Stop";
@@ -143,6 +151,7 @@ export function WeakSpots() {
         variant={playing ? "outline" : "default"}
       >
         {buttonLabel}
+        <Kbd>{playing ? "Esc" : "Space"}</Kbd>
       </Button>
       {phase === "error" ? (
         <p className="text-center text-destructive text-sm" role="alert">

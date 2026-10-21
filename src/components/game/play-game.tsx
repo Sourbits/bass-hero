@@ -13,7 +13,10 @@ import {
 } from "@/components/game/game-parts";
 import { NoteHighway } from "@/components/game/note-highway";
 import { type RunPhase, useGameRun } from "@/components/game/use-game-run";
+import { Kbd } from "@/components/kbd";
 import { Button } from "@/components/ui/button";
+import { useShortcuts } from "@/components/use-shortcuts";
+import { KEYS } from "@/config/shortcuts";
 import {
   CUSTOM_SET_ID,
   generateChart,
@@ -125,6 +128,21 @@ export function PlayGame() {
     run;
   const summary = summarize(judgments, run.order);
   const positions = noteSet?.positions ?? [];
+  const canStart = !playing && phase !== "starting" && positions.length > 0;
+  const nudgeTempo = (steps: number) => {
+    const next = Math.min(
+      TEMPO.max,
+      Math.max(TEMPO.min, bpm + steps * TEMPO.step)
+    );
+    setBpm(next);
+    saveTempo(next);
+  };
+  useShortcuts({
+    [KEYS.left]: !playing && (() => nudgeTempo(-1)),
+    [KEYS.right]: !playing && (() => nudgeTempo(1)),
+    [KEYS.start]: canStart && start,
+    [KEYS.stop]: playing && run.stop,
+  });
   let buttonLabel = phase === "finished" ? "Play again" : "Start";
   if (playing) {
     buttonLabel = "Stop";
@@ -166,6 +184,7 @@ export function PlayGame() {
         variant={playing ? "outline" : "default"}
       >
         {buttonLabel}
+        <Kbd>{playing ? "Esc" : "Space"}</Kbd>
       </Button>
       <p
         className={`text-center text-sm ${phase === "error" ? "text-destructive" : "text-muted-foreground"}`}

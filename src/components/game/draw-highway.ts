@@ -1,5 +1,10 @@
 import { STRING_COLORS } from "@/components/string-colors";
-import { type HighwayGeometry, laneX, projectNote } from "@/game/layout";
+import {
+  type HighwayGeometry,
+  laneIndex,
+  laneX,
+  projectNote,
+} from "@/game/layout";
 import { type BassString, STRINGS } from "@/instrument/bass";
 
 /** One note on the highway, as the drawing needs it. */
@@ -60,8 +65,8 @@ function drawSurface(
   context.fill();
 
   const laneWidth = (2 * halfWidth) / STRINGS.length;
-  for (const [index, string] of STRINGS.entries()) {
-    const left = -halfWidth + laneWidth * index;
+  for (const string of STRINGS) {
+    const left = -halfWidth + laneWidth * laneIndex(string, geometry);
     if (showLanes && activeLanes.has(string)) {
       context.fillStyle = `${STRING_COLORS[string]}22`;
       context.beginPath();

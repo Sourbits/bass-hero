@@ -3,7 +3,8 @@ import { type BassString, STRINGS } from "@/instrument/bass";
 /**
  * A highway seen in perspective, Guitar Hero style: notes appear small at the
  * far end and come toward you, one lane per string (E, A, D, G from left to
- * right), until they reach the strike line near the bottom.
+ * right, or mirrored for left-handed players), until they reach the strike
+ * line near the bottom.
  */
 export interface HighwayGeometry {
   /** How long a note takes from the far end to the strike line, in ms. */
@@ -16,6 +17,8 @@ export interface HighwayGeometry {
   /** Half the highway's width at the strike line, in px. */
   halfWidth: number;
   height: number;
+  /** Lanes mirrored, G to E from left to right, for left-handed players. */
+  leftHanded: boolean;
   /** Radius of a note at the strike line, in px. */
   radius: number;
   /** Where the strike line is drawn, in px from the top. */
@@ -34,7 +37,8 @@ const BOTTOM_SPACE = 112;
 /** The highway for a drawing area of this size. */
 export function highwayGeometry(
   width: number,
-  height: number
+  height: number,
+  leftHanded = false
 ): HighwayGeometry {
   const halfWidth = Math.min(width * 0.46, MAX_HALF_WIDTH);
   const laneWidth = (2 * halfWidth) / STRINGS.length;
@@ -45,6 +49,7 @@ export function highwayGeometry(
     farY: 16,
     halfWidth,
     height,
+    leftHanded,
     radius: Math.min(laneWidth * 0.38, MAX_RADIUS),
     strikeY: height - BOTTOM_SPACE,
     width,
@@ -78,13 +83,20 @@ export function projectNote(
   return { scale, y };
 }
 
+/** Which lane a string is in, counting from the left. */
+export function laneIndex(string: BassString, { leftHanded }: HighwayGeometry) {
+  const index = STRINGS.indexOf(string);
+  return leftHanded ? STRINGS.length - 1 - index : index;
+}
+
 /** Center of a string's lane at a given perspective scale, in px. */
 export function laneX(
   string: BassString,
   scale: number,
-  { centerX, halfWidth }: HighwayGeometry
+  geometry: HighwayGeometry
 ) {
+  const { centerX, halfWidth } = geometry;
   const laneWidth = (2 * halfWidth) / STRINGS.length;
-  const offset = -halfWidth + laneWidth * (STRINGS.indexOf(string) + 0.5);
+  const offset = -halfWidth + laneWidth * (laneIndex(string, geometry) + 0.5);
   return centerX + offset * scale;
 }
