@@ -9,7 +9,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display);
+  --color-gold: var(--gold);
+  --color-neon: var(--neon);
+  --color-good: var(--good);
+  --color-cool: var(--cool);
+  --color-bad: var(--bad);
+  --color-stage: var(--stage);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,83 +54,131 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
+/*
+ * One look: a dark stage. Ink-blue surfaces, gold for the main actions and
+ * stars, and a neon pink for stage-light accents.
+ */
+:root,
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: oklch(0.15 0.03 278);
+  --foreground: oklch(0.97 0.01 278);
+  --card: oklch(0.195 0.035 278);
+  --card-foreground: oklch(0.97 0.01 278);
+  --popover: oklch(0.21 0.035 278);
+  --popover-foreground: oklch(0.97 0.01 278);
+  --primary: oklch(0.84 0.16 82);
+  --primary-foreground: oklch(0.2 0.04 278);
+  --secondary: oklch(0.26 0.04 278);
+  --secondary-foreground: oklch(0.97 0.01 278);
+  --muted: oklch(0.245 0.035 278);
+  --muted-foreground: oklch(0.73 0.03 278);
+  --accent: oklch(0.28 0.045 278);
+  --accent-foreground: oklch(0.97 0.01 278);
+  --destructive: oklch(0.69 0.2 22);
+  --border: oklch(1 0 0 / 9%);
+  --input: oklch(1 0 0 / 14%);
+  --ring: oklch(0.84 0.16 82 / 70%);
+  --chart-1: oklch(0.84 0.16 82);
+  --chart-2: oklch(0.7 0.24 340);
+  --chart-3: oklch(0.78 0.17 155);
+  --chart-4: oklch(0.75 0.13 235);
+  --chart-5: oklch(0.69 0.2 22);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.195 0.035 278);
+  --sidebar-foreground: oklch(0.97 0.01 278);
+  --sidebar-primary: oklch(0.84 0.16 82);
+  --sidebar-primary-foreground: oklch(0.2 0.04 278);
+  --sidebar-accent: oklch(0.28 0.045 278);
+  --sidebar-accent-foreground: oklch(0.97 0.01 278);
+  --sidebar-border: oklch(1 0 0 / 9%);
+  --sidebar-ring: oklch(0.84 0.16 82 / 70%);
+
+  /* Game colors. */
+  --gold: oklch(0.84 0.16 82);
+  --neon: oklch(0.7 0.24 340);
+  --good: oklch(0.79 0.17 155);
+  --cool: oklch(0.76 0.13 235);
+  --bad: oklch(0.69 0.2 22);
+  /* The highway's own surface, a little darker than the page. */
+  --stage: oklch(0.12 0.035 280);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    color-scheme: dark;
+    @apply font-sans;
+  }
   body {
+    background-image:
+      radial-gradient(
+        ellipse 70% 45% at 15% -5%,
+        oklch(0.45 0.2 340 / 18%),
+        transparent 70%
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 90% -10%,
+        oklch(0.55 0.15 250 / 16%),
+        transparent 70%
+      );
+    background-attachment: fixed;
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+  input[type="checkbox"],
+  input[type="range"] {
+    accent-color: var(--gold);
+  }
+}
+
+@layer utilities {
+  /* Gold-to-pink text, for the logo and big moments. */
+  .text-stage-gradient {
+    color: transparent;
+    background-image: linear-gradient(90deg, var(--gold), var(--neon));
+    background-clip: text;
+  }
+}
+
+/* A star popping in, for results. */
+@keyframes star-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2) rotate(-25deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.25) rotate(8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+/* A light sweeping across, for "New best!". */
+@keyframes shine {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 1ms !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

@@ -1,7 +1,10 @@
 "use client";
 
 import { LockIcon, TrophyIcon } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import {
   ACHIEVEMENT_GROUPS,
   ACHIEVEMENTS,
@@ -90,14 +93,14 @@ export function AchievementCard({
   return (
     <li
       className={`flex items-start gap-3 rounded-xl border p-4 ${
-        unlockedAt ? "border-amber-500/40 bg-amber-500/5" : ""
+        unlockedAt
+          ? "border-gold/40 bg-gold/8 shadow-[0_0_30px_-18px_var(--gold)]"
+          : "bg-card"
       }`}
     >
       <span
         className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
-          unlockedAt
-            ? "bg-amber-500/15 text-amber-600"
-            : "bg-muted text-muted-foreground"
+          unlockedAt ? "bg-gold/15 text-gold" : "bg-muted text-muted-foreground"
         }`}
       >
         {unlockedAt ? (
@@ -117,7 +120,7 @@ export function AchievementCard({
           {achievement.description}
         </p>
         {unlockedAt ? (
-          <p className="text-amber-600 text-xs">
+          <p className="text-gold text-xs">
             Unlocked{" "}
             {new Date(unlockedAt).toLocaleDateString(undefined, {
               day: "numeric",
@@ -158,16 +161,34 @@ export function AchievementsList() {
   return (
     <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-2">
-        <p className="font-medium">
+        <p className="font-bold font-heading text-lg">
           {unlockedCount} of {ACHIEVEMENTS.length} unlocked
         </p>
         <div className="h-2 overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-amber-500"
+            className="h-full rounded-full bg-gold"
             style={{ width: `${(unlockedCount / ACHIEVEMENTS.length) * 100}%` }}
           />
         </div>
       </section>
+      {unlockedCount === 0 ? (
+        <EmptyState
+          action={
+            <Button
+              nativeButton={false}
+              render={<Link href="/game" />}
+              variant="stage"
+            >
+              Play your first level
+            </Button>
+          }
+          icon={TrophyIcon}
+          title="Your first one is a note away"
+        >
+          Hit a single note in any mode to unlock First Note. A handful more
+          come in your first few sessions.
+        </EmptyState>
+      ) : null}
       {ACHIEVEMENT_GROUPS.map((group) => {
         const inGroup = ACHIEVEMENTS.filter(
           (achievement) => achievement.group === group

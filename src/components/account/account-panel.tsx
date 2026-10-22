@@ -156,7 +156,7 @@ function SignedIn() {
   const onSave = useCallback(() => syncNow(), [syncNow]);
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border p-5">
+    <section className="flex flex-col gap-4 rounded-3xl border bg-card p-5">
       <div className="flex flex-col gap-1">
         <h2 className="font-semibold text-xl">
           Hi, {user?.username ?? user?.name}
@@ -260,7 +260,7 @@ function SignInForm() {
   );
 
   return (
-    <section className="flex flex-col gap-5 rounded-xl border p-5">
+    <section className="flex flex-col gap-5 rounded-3xl border bg-card p-5">
       <div className="flex gap-1 rounded-lg bg-muted p-1" role="tablist">
         <button
           aria-selected={!signingUp}

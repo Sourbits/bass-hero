@@ -1,7 +1,10 @@
 "use client";
 
+import { CrosshairIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { playNote } from "@/audio/play-note";
+import { EmptyState } from "@/components/empty-state";
+import { isDemoMode } from "@/components/game/audio-session";
 import {
   beatTimes,
   comboOf,
@@ -9,6 +12,7 @@ import {
   toGems,
 } from "@/components/game/game-parts";
 import { NoteHighway } from "@/components/game/note-highway";
+import { RunResults } from "@/components/game/results";
 import { useGameRun } from "@/components/game/use-game-run";
 import { HeatMap } from "@/components/heat-map";
 import { Kbd } from "@/components/kbd";
@@ -119,17 +123,28 @@ export function WeakSpots() {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-3">
-        <p className="text-muted-foreground text-sm">
-          Every note you play, in any mode, updates your fretboard. This drills
-          the {SPOTS} notes you know least: {RUN_NOTES} notes at {RUN_BPM} BPM,
-          names shown.
-        </p>
+        <ul className="flex flex-wrap gap-1.5 text-xs">
+          {[
+            `Your ${SPOTS} weakest notes`,
+            `${RUN_NOTES} per run`,
+            `${RUN_BPM} BPM`,
+            "Names shown",
+          ].map((fact) => (
+            <li
+              className="rounded-full border bg-card px-2.5 py-1 text-muted-foreground"
+              key={fact}
+            >
+              {fact}
+            </li>
+          ))}
+        </ul>
         {spots.length >= 2 ? (
           <SpotList spots={spots} stats={stats} />
         ) : (
-          <p className="text-sm">
-            Not enough to drill yet. Play a few levels first.
-          </p>
+          <EmptyState icon={CrosshairIcon} title="Nothing to drill yet">
+            Play a few levels first. Every note you play shows which ones you
+            know least.
+          </EmptyState>
         )}
       </section>
 
@@ -148,7 +163,7 @@ export function WeakSpots() {
         disabled={phase === "starting" || spots.length < 2}
         onClick={playing ? run.stop : play}
         size="lg"
-        variant={playing ? "outline" : "default"}
+        variant={playing ? "outline" : "stage"}
       >
         {buttonLabel}
         <Kbd>{playing ? "Esc" : "Space"}</Kbd>
@@ -158,8 +173,17 @@ export function WeakSpots() {
           {run.error}
         </p>
       ) : null}
+      {phase === "finished" ? (
+        <RunResults
+          demo={isDemoMode()}
+          summary={summary}
+          title="Drill complete"
+          total={notes.length}
+          unlocked={run.unlocked}
+        />
+      ) : null}
 
-      <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">
+      <section className="flex flex-col gap-3 rounded-3xl border bg-card p-4 sm:p-6">
         <h2 className="font-semibold">Your fretboard</h2>
         <p className="text-muted-foreground text-sm">
           How well you know each note, from everything you've played. Tap a note

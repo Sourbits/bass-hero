@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Handed } from "@/components/handed";
 import { LearnFretboard } from "@/components/learn-notes";
+import { PageHeader } from "@/components/page-header";
 import { STRING_COLORS } from "@/components/string-colors";
 import { STRINGS } from "@/instrument/bass";
 
@@ -11,14 +12,10 @@ export const metadata: Metadata = {
 
 export default function NotesPage() {
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-semibold text-3xl">Learn the notes</h1>
-        <p className="text-muted-foreground">
-          Every note on a 4-string bass up to the 12th fret. Tap a note to hear
-          it.
-        </p>
-      </header>
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-8 px-4 py-8 sm:py-10">
+      <PageHeader title="Learn the notes">
+        Every note up to the 12th fret. Tap one to hear it.
+      </PageHeader>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold text-xl">The neck</h2>

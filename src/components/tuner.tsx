@@ -111,7 +111,7 @@ function StringPicker({
       <legend className="mb-2 text-center text-muted-foreground text-sm">
         String: let it detect which one, or pick it
       </legend>
-      <div className="flex w-full max-w-sm rounded-xl border p-1">
+      <div className="flex w-full max-w-sm gap-1 rounded-2xl border bg-background/40 p-1">
         {choices.map((option) => (
           <ChoiceButton
             choice={option}
@@ -176,7 +176,7 @@ function TuningDisplay({
         {tuning.string} string · target {tuning.targetName.replace("#", "♯")}
       </span>
       <span
-        className={`font-bold text-5xl ${inTune ? "text-emerald-600" : "text-amber-600"}`}
+        className={`font-bold text-5xl ${inTune ? "text-good" : "text-gold"}`}
       >
         {text.arrow} {text.label}
       </span>
@@ -200,7 +200,7 @@ function CentsMeter({ cents }: { cents: number | null }) {
   return (
     <div className="w-full">
       <div className="relative h-12">
-        <div className="absolute inset-y-0 left-[45%] w-[10%] rounded bg-emerald-500/15" />
+        <div className="absolute inset-y-0 left-[45%] w-[10%] rounded bg-good/15" />
         {[-50, -25, 0, 25, 50].map((tick) => (
           <div
             className={`absolute top-1/2 w-px -translate-x-1/2 -translate-y-1/2 bg-border ${tick === 0 ? "h-full" : "h-1/2"}`}
@@ -210,7 +210,7 @@ function CentsMeter({ cents }: { cents: number | null }) {
         ))}
         {cents === null ? null : (
           <div
-            className={`absolute inset-y-0 w-1.5 -translate-x-1/2 rounded-full transition-[left] duration-75 ${inTune ? "bg-emerald-500" : "bg-amber-500"} ${pegged ? "animate-pulse" : ""}`}
+            className={`absolute inset-y-0 w-1.5 -translate-x-1/2 rounded-full transition-[left] duration-75 ${inTune ? "bg-good" : "bg-gold"} ${pegged ? "animate-pulse" : ""}`}
             style={{ left: `${50 + offset}%` }}
           />
         )}
@@ -239,7 +239,7 @@ function StringStatusRow({
         }
         return (
           <div
-            className="flex flex-col items-center rounded-xl border py-2"
+            className="flex flex-col items-center rounded-xl border bg-background/40 py-2"
             key={string}
           >
             <span
@@ -249,7 +249,7 @@ function StringStatusRow({
               {string}
             </span>
             <span
-              className={`text-xl ${status?.direction === "in-tune" ? "text-emerald-600" : ""}`}
+              className={`text-xl ${status?.direction === "in-tune" ? "text-good" : ""}`}
             >
               {mark}
             </span>
@@ -286,7 +286,7 @@ function Meter({
       </div>
       <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
         <div
-          className={`h-full ${tone === "bad" ? "bg-red-500" : "bg-foreground/50"}`}
+          className={`h-full ${tone === "bad" ? "bg-bad" : "bg-foreground/50"}`}
           style={{ width: `${clamp(fraction, 0, 1) * 100}%` }}
         />
         {marker === undefined ? null : (
@@ -469,7 +469,7 @@ export function Tuner() {
   }
 
   return (
-    <section className="flex flex-col items-center gap-6 rounded-2xl border p-6 sm:p-8">
+    <section className="flex flex-col items-center gap-6 rounded-3xl border bg-card p-6 sm:p-8">
       <StringPicker choice={choice} onChoose={choose} />
       <TuningDisplay heard={note} tuning={tuning} />
       <CentsMeter cents={tuning?.cents ?? null} />
@@ -493,7 +493,7 @@ export function Tuner() {
         disabled={status.kind === "starting"}
         onClick={listening ? stop : start}
         size="lg"
-        variant={listening ? "outline" : "default"}
+        variant={listening ? "outline" : "stage"}
       >
         {listening ? "Stop" : "Start"}
         <Kbd>Space</Kbd>

@@ -232,7 +232,7 @@ export function Calibration() {
     []
   );
   const highwayGems: HighwayGem[] = beats.map((beat, index) => ({
-    color: beat.countIn ? "#52525b" : "#4f46e5",
+    color: beat.countIn ? "#4a4770" : "#7c3aed",
     key: String(index),
     label: beat.label,
     lane: null,
@@ -245,6 +245,7 @@ export function Calibration() {
     <div className="flex flex-col gap-6">
       <NoteHighway
         beatTimesMs={beats.map((beat) => beat.targetMs)}
+        countdown={false}
         feedback={feedback}
         gems={highwayGems}
         getNow={getNow}
@@ -257,7 +258,7 @@ export function Calibration() {
         disabled={phase === "starting"}
         onClick={running ? stop : start}
         size="lg"
-        variant={running ? "outline" : "default"}
+        variant={running ? "outline" : "stage"}
       >
         {buttonLabel}
         <Kbd>{running ? "Esc" : "Space"}</Kbd>
@@ -270,7 +271,7 @@ export function Calibration() {
       )}
 
       {phase === "done" && (
-        <section className="flex flex-col gap-3 rounded-2xl border p-6">
+        <section className="flex flex-col gap-3 rounded-3xl border bg-card p-6">
           {result ? (
             <>
               <h2 className="font-semibold text-xl">
@@ -300,7 +301,7 @@ export function Calibration() {
         </section>
       )}
 
-      <section className="flex flex-col gap-3 rounded-2xl border p-6">
+      <section className="flex flex-col gap-3 rounded-3xl border bg-card p-6">
         <h2 className="font-semibold">Latency offset</h2>
         <p className="text-muted-foreground text-sm">
           Saved in this browser: {savedOffset} ms. The game subtracts it from

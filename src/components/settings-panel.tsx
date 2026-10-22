@@ -54,7 +54,7 @@ function Toggle({
 
 function Section({ children, title }: { children: ReactNode; title: string }) {
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border p-5">
+    <section className="flex flex-col gap-4 rounded-3xl border bg-card p-5">
       <h2 className="font-semibold text-lg">{title}</h2>
       {children}
     </section>

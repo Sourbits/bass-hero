@@ -64,6 +64,8 @@ export function useGameRun() {
   const [order, setOrder] = useState<number[]>([]);
   const [feedback, setFeedback] = useState<HighwayFeedback | null>(null);
   const [getNow, setGetNow] = useState<((at?: number) => number) | null>(null);
+  /** Achievements the last run unlocked, for its results. */
+  const [unlocked, setUnlocked] = useState<string[]>([]);
 
   const sessionRef = useRef<AudioSession | null>(null);
   const judgeRef = useRef<Judge | null>(null);
@@ -120,6 +122,7 @@ export function useGameRun() {
     }: RunOptions) => {
       setPhase("starting");
       releaseFocus();
+      setUnlocked([]);
       onFinishRef.current = onFinish;
       runInfoRef.current = {
         countBuzz: config.countBuzz,
@@ -215,7 +218,7 @@ export function useGameRun() {
         });
         // After the run's own progress is saved, so the check sees it.
         if (!demoRef.current) {
-          reportAchievement({
+          const found = reportAchievement({
             ...runInfoRef.current,
             at: new Date(),
             judgments: judge.judgments(),
@@ -223,6 +226,7 @@ export function useGameRun() {
             order: orderRef.current,
             total: notesRef.current.length,
           });
+          setUnlocked(found);
         }
         stopAudio().catch(() => undefined);
       }
@@ -250,5 +254,6 @@ export function useGameRun() {
     playing: phase === "playing" || phase === "starting",
     start,
     stop,
+    unlocked,
   };
 }

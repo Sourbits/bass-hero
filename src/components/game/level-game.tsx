@@ -13,6 +13,14 @@ import {
 } from "@/components/game/game-parts";
 import { NoteHighway } from "@/components/game/note-highway";
 import {
+  NewBest,
+  nextStarText,
+  ResultStat,
+  ResultsCard,
+  Stars,
+  UnlockedAchievements,
+} from "@/components/game/results";
+import {
   type FinishedRun,
   type RunPhase,
   useGameRun,
@@ -79,10 +87,6 @@ interface RunResult {
   total: number;
 }
 
-function starText(stars: number) {
-  return "★".repeat(stars) + "☆".repeat(3 - stars);
-}
-
 function movementText({ maxJump, minJump, widestJump }: LevelSettings) {
   if (minJump >= widestJump * 0.45) {
     return "huge jumps";
@@ -145,9 +149,13 @@ function NewNotes({ settings }: { settings: LevelSettings }) {
 
 function tierStyle(tier: TierId, selected: boolean) {
   if (tier === "demon") {
-    return selected ? "bg-red-600 text-white" : "text-red-600 hover:bg-red-50";
+    return selected
+      ? "bg-bad text-white shadow-[0_0_24px_-4px_var(--bad)]"
+      : "text-bad hover:bg-bad/10";
   }
-  return selected ? "bg-foreground text-background" : "hover:bg-muted";
+  return selected
+    ? "bg-primary text-primary-foreground shadow-[0_0_24px_-8px_var(--gold)]"
+    : "text-muted-foreground hover:bg-secondary hover:text-foreground";
 }
 
 function TierButton({
@@ -163,7 +171,7 @@ function TierButton({
   return (
     <button
       aria-pressed={selected}
-      className={`flex-1 rounded-lg py-2 font-semibold transition-colors ${tierStyle(tier, selected)}`}
+      className={`flex-1 rounded-xl py-2 font-bold font-heading transition-colors ${tierStyle(tier, selected)}`}
       onClick={choose}
       type="button"
     >
@@ -188,18 +196,20 @@ function LevelButton({
     <button
       aria-label={`${TIERS[level.tier].name} level ${level.level}, ${record?.stars ?? 0} of 3 stars`}
       aria-pressed={selected}
-      className={`flex flex-col items-center rounded-xl border py-1.5 transition-colors ${
+      className={`flex flex-col items-center gap-0.5 rounded-xl border py-1.5 transition-colors ${
         selected
-          ? "border-foreground bg-foreground text-background"
-          : "hover:bg-muted"
+          ? "border-gold bg-gold/12 ring-1 ring-gold/50"
+          : "bg-card hover:bg-secondary"
       }`}
       onClick={choose}
       type="button"
     >
-      <span className="font-semibold">{level.level}</span>
-      <span className="text-[0.65rem] text-amber-500 tracking-tight">
-        {starText(record?.stars ?? 0)}
-      </span>
+      <span className="font-bold font-heading">{level.level}</span>
+      <Stars
+        animate={false}
+        className="text-[0.65rem]"
+        count={record?.stars ?? 0}
+      />
     </button>
   );
 }
@@ -226,7 +236,7 @@ export function LevelPicker({
   return (
     <fieldset className="flex flex-col gap-3" disabled={disabled}>
       <legend className="sr-only">Difficulty</legend>
-      <div className="flex rounded-xl border p-1">
+      <div className="flex gap-1 rounded-3xl border bg-card p-1">
         {TIER_ORDER.map((tier) => (
           <TierButton
             key={tier}
@@ -252,13 +262,23 @@ export function LevelPicker({
       </div>
       {details ? (
         <>
+          <ul className="flex flex-wrap gap-1.5 text-xs">
+            {[
+              `${settings.positions.length} notes to know`,
+              `${settings.bpm} BPM`,
+              spacingText(settings.beatsPerNote),
+              movementText(settings),
+              `${settings.notes} per run`,
+            ].map((fact) => (
+              <li
+                className="rounded-full border bg-card px-2.5 py-1 text-muted-foreground"
+                key={fact}
+              >
+                {fact}
+              </li>
+            ))}
+          </ul>
           <p className="text-muted-foreground text-sm">
-            <span className="font-medium text-foreground">
-              {TIERS[current.tier].name} {current.level}:
-            </span>{" "}
-            {settings.positions.length} notes to know,{" "}
-            {spacingText(settings.beatsPerNote)} at {settings.bpm} BPM,{" "}
-            {movementText(settings)}. {settings.notes} notes per run.{" "}
             {TIERS[current.tier].description}
           </p>
           <NewNotes settings={settings} />
@@ -327,7 +347,7 @@ function MissedNoteRow({ missed }: { missed: MissedNote }) {
 function MissedNotes({ missed }: { missed: MissedNote[] }) {
   if (missed.length === 0) {
     return (
-      <p className="font-medium text-emerald-600">
+      <p className="text-center font-semibold text-good">
         No notes missed. Clean run!
       </p>
     );
@@ -397,50 +417,74 @@ function useLevelShortcuts({
 
 function RunResultCard({
   demo,
+  onAgain,
   onNext,
   result,
+  unlocked,
 }: {
   demo: boolean;
+  onAgain: () => void;
   onNext: (() => void) | null;
   result: RunResult;
+  unlocked: string[];
 }) {
-  const { averageOffsetMs, counts, score } = result.summary;
+  const { averageOffsetMs, counts, fullCombo, maxStreak, score } =
+    result.summary;
+  const hint = nextStarText(result.stars);
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border p-6">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-semibold text-xl">
+    <ResultsCard>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h2 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
           {TIERS[result.level.tier].name} {result.level.level} complete
         </h2>
-        <span className="text-2xl text-amber-500">
-          {starText(result.stars)}
-        </span>
+        <Stars count={result.stars} />
+        <p className="font-extrabold font-heading text-5xl text-gold tabular-nums">
+          {score.toLocaleString("en-US")}
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {result.isBest ? <NewBest /> : null}
+          {fullCombo ? (
+            <span className="rounded-full border border-neon/50 px-3 py-1 font-bold text-neon text-xs uppercase tracking-wide">
+              Full combo!
+            </span>
+          ) : null}
+        </div>
+        {hint ? <p className="text-muted-foreground text-sm">{hint}</p> : null}
       </div>
-      <p>
-        You hit {Math.round(result.hitRate * 100)}% of {result.total} notes:{" "}
-        {counts.perfect} Perfect, {counts.good} Good, {counts.miss} Miss. Score{" "}
-        {score.toLocaleString("en-US")}.
-        {result.isBest ? " New best for this level!" : ""}
-      </p>
-      <p className="font-medium">
-        Longest streak: {result.summary.maxStreak}
-        {result.summary.fullCombo ? (
-          <span className="text-amber-500"> · Full combo!</span>
-        ) : null}
-      </p>
-      <p className="text-muted-foreground text-sm">
+      <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <ResultStat
+          label="Notes hit"
+          value={`${Math.round(result.hitRate * 100)}%`}
+        />
+        <ResultStat label="Perfect" tone="text-good" value={counts.perfect} />
+        <ResultStat label="Good" tone="text-cool" value={counts.good} />
+        <ResultStat label="Longest streak" value={maxStreak} />
+      </dl>
+      <p className="text-center text-muted-foreground text-sm">
         {averageOffsetMs === null
           ? "No notes were hit."
           : `Your hits averaged ${describeOffset(averageOffsetMs)}.`}
         {demo ? " (Demo mode.)" : ""}
       </p>
-      {onNext ? (
-        <Button onClick={onNext}>
-          Next level
-          <Kbd>Enter</Kbd>
+      <UnlockedAchievements ids={unlocked} />
+      <div className="flex flex-wrap justify-center gap-2">
+        {onNext ? (
+          <Button onClick={onNext} size="lg" variant="stage">
+            Next level
+            <Kbd>Enter</Kbd>
+          </Button>
+        ) : null}
+        <Button
+          onClick={onAgain}
+          size="lg"
+          variant={onNext ? "outline" : "stage"}
+        >
+          Play again
+          <Kbd>Space</Kbd>
         </Button>
-      ) : null}
+      </div>
       <MissedNotes missed={result.missed} />
-    </section>
+    </ResultsCard>
   );
 }
 
@@ -610,7 +654,7 @@ export function LevelGame() {
         disabled={phase === "starting"}
         onClick={playing ? run.stop : playCurrent}
         size="lg"
-        variant={playing ? "outline" : "default"}
+        variant={playing ? "outline" : "stage"}
       >
         {buttonLabel}
         <Kbd>{playing ? "Esc" : "Space"}</Kbd>
@@ -623,10 +667,16 @@ export function LevelGame() {
       </p>
 
       {result && phase === "finished" ? (
-        <RunResultCard demo={demo} onNext={nextAfterRun} result={result} />
+        <RunResultCard
+          demo={demo}
+          onAgain={playCurrent}
+          onNext={nextAfterRun}
+          result={result}
+          unlocked={run.unlocked}
+        />
       ) : null}
 
-      <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">
+      <section className="flex flex-col gap-3 rounded-3xl border bg-card p-4 sm:p-6">
         <h2 className="font-semibold">Options</h2>
         <OptionToggle
           checked={options.countBuzz}
@@ -651,7 +701,7 @@ export function LevelGame() {
       </section>
 
       {showMap ? (
-        <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">
+        <section className="flex flex-col gap-3 rounded-3xl border bg-card p-4 sm:p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-semibold">Notes in this level</h2>
             <Link

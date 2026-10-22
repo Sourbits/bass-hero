@@ -29,12 +29,12 @@ function ToastCard({
   const [only] = achievements;
   const single = achievements.length === 1 && only;
   return (
-    <li className="pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-xl border border-amber-500/40 bg-background p-4 shadow-lg">
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-500/15 text-amber-600">
+    <li className="pointer-events-auto flex w-80 max-w-[calc(100vw-2rem)] items-start gap-3 rounded-xl border border-gold/40 bg-background p-4 shadow-lg">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
         <TrophyIcon aria-hidden className="size-5" />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="font-medium text-amber-600 text-xs uppercase tracking-wide">
+        <p className="font-medium text-gold text-xs uppercase tracking-wide">
           {single
             ? "Achievement unlocked"
             : `${achievements.length} achievements unlocked`}

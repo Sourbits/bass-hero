@@ -10,6 +10,11 @@ import {
   startAudioSession,
 } from "@/components/game/audio-session";
 import { LevelPicker } from "@/components/game/level-game";
+import {
+  ResultStat,
+  ResultsCard,
+  UnlockedAchievements,
+} from "@/components/game/results";
 import { Kbd } from "@/components/kbd";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
@@ -79,7 +84,7 @@ function NoteReveal({ prompt, found }: { found: boolean; prompt: EarPrompt }) {
   return (
     <div className="flex flex-col items-center gap-3">
       <p
-        className={`font-bold text-2xl ${found ? "text-emerald-600" : "text-foreground"}`}
+        className={`font-bold text-2xl ${found ? "text-good" : "text-foreground"}`}
       >
         {found ? "✓ " : "It was "}
         <span style={{ color: STRING_COLORS[prompt.position.string] }}>
@@ -112,20 +117,42 @@ function TriesDots({ tries }: { tries: number }) {
   );
 }
 
-function Results({ results }: { results: EarResult[] }) {
+function Results({
+  results,
+  unlocked,
+}: {
+  results: EarResult[];
+  unlocked: string[];
+}) {
   const score = scoreEar(results);
   const toWork = results.filter(({ solved, tries }) => !solved || tries > 1);
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border p-6">
-      <h2 className="font-semibold text-xl">Round complete</h2>
-      <p>
-        Found {score.firstTry} of {results.length} on the first try. Score{" "}
-        {score.score.toLocaleString("en-US")}, longest streak {score.maxStreak}.
-      </p>
+    <ResultsCard>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <h2 className="font-semibold text-muted-foreground text-sm uppercase tracking-wide">
+          Round complete
+        </h2>
+        <p className="font-extrabold font-heading text-5xl text-gold tabular-nums">
+          {score.score.toLocaleString("en-US")}
+        </p>
+      </div>
+      <dl className="grid grid-cols-3 gap-2">
+        <ResultStat
+          label="First try"
+          tone="text-good"
+          value={`${score.firstTry} / ${results.length}`}
+        />
+        <ResultStat
+          label="Found"
+          value={`${results.filter(({ solved }) => solved).length} / ${results.length}`}
+        />
+        <ResultStat label="Longest streak" value={score.maxStreak} />
+      </dl>
+      <UnlockedAchievements ids={unlocked} />
       {toWork.length > 0 ? (
-        <>
-          <h3 className="font-semibold">Notes to listen to again</h3>
-          <ul className="flex flex-wrap gap-2">
+        <div className="flex flex-col items-center gap-2">
+          <h3 className="font-semibold text-sm">Listen to these again</h3>
+          <ul className="flex flex-wrap justify-center gap-2">
             {toWork.map(({ prompt }, index) => (
               <ReplayChip
                 key={`${positionKey(prompt.position)}-${String(index)}`}
@@ -133,11 +160,13 @@ function Results({ results }: { results: EarResult[] }) {
               />
             ))}
           </ul>
-        </>
+        </div>
       ) : (
-        <p className="font-medium text-emerald-600">All on the first try!</p>
+        <p className="text-center font-semibold text-good">
+          All on the first try!
+        </p>
       )}
-    </section>
+    </ResultsCard>
   );
 }
 
@@ -170,6 +199,8 @@ export function EarTraining() {
   const listenFromRef = useRef(Number.POSITIVE_INFINITY);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const demoRef = useRef<boolean>(false);
+  /** Achievements the last round unlocked, for its results. */
+  const [unlocked, setUnlocked] = useState<string[]>([]);
   /** The tier the round's notes came from, for achievements. */
   const tierRef = useRef<TierId>("easy");
   const onNoteRef = useRef<(played: PlayedNote) => void>(() => undefined);
@@ -241,7 +272,7 @@ export function EarTraining() {
       update({ ...viewRef.current, results: finished, stage: "done" });
       if (!demoRef.current) {
         saveOutcomes(earOutcomes(finished));
-        reportAchievement({
+        const found = reportAchievement({
           at: new Date(),
           firstTries: finished.map(
             (result) => result.solved && result.tries === 1
@@ -249,6 +280,7 @@ export function EarTraining() {
           kind: "ear-round",
           tier: tierRef.current,
         });
+        setUnlocked(found);
       }
       stopAll().catch(() => undefined);
     },
@@ -319,6 +351,7 @@ export function EarTraining() {
   const start = useCallback(async () => {
     releaseFocus();
     setError("");
+    setUnlocked([]);
     const { positions } = levelSettings(progress.current);
     tierRef.current = progress.current.tier;
     promptsRef.current = earPrompts(positions, EAR_TRAINING.prompts);
@@ -374,11 +407,11 @@ export function EarTraining() {
         progress={progress}
       />
       <p className="text-muted-foreground text-sm">
-        Notes come from the level you pick: {poolSize} of them. The game plays
-        one; find it on your bass. No names, no map: just your ears.
+        Notes come from the level you pick ({poolSize} of them). No names, no
+        map: just your ears.
       </p>
 
-      <section className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-2xl border p-6 text-center">
+      <section className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-3xl border bg-card p-6 text-center">
         {running ? (
           <p className="text-muted-foreground text-sm tabular-nums">
             Note {Math.min(index + 1, promptsRef.current.length)} of{" "}
@@ -396,7 +429,7 @@ export function EarTraining() {
           disabled={stage === "starting"}
           onClick={running ? stop : start}
           size="lg"
-          variant={running ? "outline" : "default"}
+          variant={running ? "outline" : "stage"}
         >
           {running ? "Stop" : "Start a round"}
           <Kbd>{running ? "Esc" : "Space"}</Kbd>
@@ -413,7 +446,9 @@ export function EarTraining() {
           {error}
         </p>
       ) : null}
-      {stage === "done" ? <Results results={results} /> : null}
+      {stage === "done" ? (
+        <Results results={results} unlocked={unlocked} />
+      ) : null}
     </div>
   );
 }
@@ -439,7 +474,7 @@ function StageView({
     return (
       <div aria-live="polite" className="flex flex-col items-center gap-2">
         <p className="font-bold text-2xl">Your turn: play the note you heard</p>
-        <p className="font-semibold text-amber-600 text-lg">{hint}</p>
+        <p className="font-semibold text-gold text-lg">{hint}</p>
         <p className="text-muted-foreground">
           <TriesDots tries={tries} />
         </p>

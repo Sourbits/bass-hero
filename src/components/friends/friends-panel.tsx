@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftIcon } from "lucide-react";
+import { ArrowLeftIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useCallback, useEffect, useState } from "react";
@@ -8,6 +8,7 @@ import { collectLocalData } from "@/account/local-data";
 import { UsernameForm } from "@/components/account/account-panel";
 import { useAccount } from "@/components/account/account-provider";
 import { AchievementCard } from "@/components/achievements-list";
+import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ACHIEVEMENT_GROUPS, ACHIEVEMENTS } from "@/game/achievement-list";
@@ -25,7 +26,7 @@ import {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-4 rounded-2xl border p-5">
+    <section className="flex flex-col gap-4 rounded-3xl border bg-card p-5">
       {children}
     </section>
   );
@@ -169,7 +170,7 @@ function FriendCard({
     </span>
   );
   return (
-    <li className="flex flex-col gap-3 rounded-2xl border p-4">
+    <li className="flex flex-col gap-3 rounded-2xl border bg-background/40 p-4">
       {href ? (
         <Link className="hover:underline" href={href}>
           {title}
@@ -205,10 +206,10 @@ function FriendList({ data, me }: { data: FriendsData; me: string }) {
         </span>
       </h2>
       {data.friends.length === 0 ? (
-        <p className="text-muted-foreground text-sm">
-          No friends yet. Send a request above; once they accept, you&apos;ll
-          see each other&apos;s stars, stats and achievements here.
-        </p>
+        <EmptyState icon={UsersIcon} title="No friends yet">
+          Send a request above. Once they accept, you&apos;ll see each
+          other&apos;s stars, stats and achievements here.
+        </EmptyState>
       ) : null}
       <ul className="flex flex-col gap-3">
         {own ? <FriendCard name={`@${me} (you)`} summary={own} /> : null}

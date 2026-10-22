@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { GameHub } from "@/components/game/game-hub";
+import { PageHeader } from "@/components/page-header";
 
 export const metadata: Metadata = {
   description:
@@ -9,14 +10,10 @@ export const metadata: Metadata = {
 
 export default function GamePage() {
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-semibold text-3xl">Game</h1>
-        <p className="text-muted-foreground">
-          Learn every note on the neck, and how each one sounds. Play each note
-          as it reaches the ring in its lane, and keep it clean.
-        </p>
-      </header>
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8 sm:py-10">
+      <PageHeader title="Game">
+        Learn every note on the neck, by feel and by ear.
+      </PageHeader>
       <GameHub />
     </main>
   );

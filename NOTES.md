@@ -1,8 +1,66 @@
 # Bass Hero notes
 
-## Latest: friends
+## Latest: UI polish
 
-On the `friends` branch (from `settings-and-shortcuts`).
+On the `ui-polish` branch (from `friends`).
+
+- **A dark "stage" look, everywhere:**
+  - Ink-blue surfaces lit by soft stage lights at the top.
+  - Gold for the main actions and stars, neon pink for accents.
+  - Ratings get their own colors: Perfect green, Good blue, Miss red.
+  - The colors live in `src/app/globals.css` as `--gold`, `--neon`,
+    `--good`, `--cool`, `--bad` and `--stage`. No component hard-codes a
+    color any more.
+- **A bolder look:**
+  - Headings use Bricolage Grotesque, a bold display font, loaded through
+    `next/font` like Geist.
+  - A logo: a guitar pick with a lightning bolt, in gold to pink. It's in
+    the nav and is the browser tab icon (`src/app/icon.svg`).
+- **The nav:** the logo, rounded tabs with a gold underline on the current
+  one, then settings and your account. On a phone the tabs get their own
+  scrolling row.
+- **The highway:**
+  - Notes glow in their string's color and have a little shine.
+  - Hits throw sparks and flash the ring.
+  - The strike line and rings pulse on every beat.
+  - A big 3, 2, 1 counts down to the first note (not in Calibrate, which
+    has its own count-in).
+  - The combo counter is bigger, and turns gold to pink when on fire.
+  - The ratings are bigger and glow.
+- **Results feel like a moment:**
+  - Stars pop in one at a time, and the score is big and gold.
+  - "New best!" has a light sweeping across it, and "Full combo!" gets a
+    badge.
+  - A hint says what the next star takes ("Hit 80% for 2 stars").
+  - Achievements unlocked by that run show as gold chips.
+  - Next level and Play again buttons sit right there.
+  - The card slides up and scrolls into view.
+  - Practice, Weak spots and Ear training end on the same kind of card.
+- **Cleaner pages:**
+  - Every page starts with the same big title and one short line.
+  - All the cards look the same.
+  - The level picker has a gold selected level, a red glow for Demon, and
+    the level's facts as small chips instead of a paragraph.
+  - The three game modes are a segmented control with icons.
+  - Main Start buttons are a gold-to-pink gradient.
+- **Empty states:**
+  - No friends yet, nothing to drill in Weak spots, and no achievements
+    yet each get an icon, a line saying what to do, and for achievements,
+    a "Play your first level" button.
+- **Phone layout:** checked every page at 375 px wide. None scrolls
+  sideways, and the game modes fit on one line.
+- **Reduced motion:** if your system asks for less motion, the animations
+  are cut to nothing.
+- **Checked in the browser:** every page at desktop and phone width, a
+  full demo run to the results card, and the countdown and effects
+  mid-run.
+- **Still to do: the walkthrough with your bass.** Detection has only been
+  tested with recordings and the demo so far.
+- **Nothing new to install.**
+
+## Earlier: friends
+
+On the `friends` branch (from `settings-and-shortcuts`). Committed.
 
 - **Usernames:**
   - 3 to 20 letters, numbers, `_` or `.`, unique ignoring case, and shown

@@ -23,6 +23,8 @@ interface NoteHighwayProps {
   beatTimesMs: number[];
   /** The current combo, shown in the corner; at the top multiplier, on fire. */
   combo?: { multiplier: number; onFire: boolean; streak: number };
+  /** Count 3, 2, 1 down to the first note. Off when the gems are a count-in. */
+  countdown?: boolean;
   feedback: HighwayFeedback | null;
   gems: HighwayGem[];
   /** The game clock, or null when nothing is playing. */
@@ -37,10 +39,10 @@ interface NoteHighwayProps {
 const FEEDBACK_HALF_WIDTH = 64;
 
 const TONE_CLASSES: Record<HighwayFeedback["tone"], string> = {
-  good: "text-sky-400",
-  miss: "text-red-400",
+  good: "text-cool drop-shadow-[0_0_10px_var(--cool)]",
+  miss: "text-bad",
   neutral: "text-white",
-  perfect: "text-emerald-400",
+  perfect: "text-good drop-shadow-[0_0_12px_var(--good)]",
 };
 
 /**
@@ -52,6 +54,7 @@ export function NoteHighway({
   activeLanes,
   combo,
   beatTimesMs,
+  countdown = true,
   feedback,
   gems,
   getNow,
@@ -66,6 +69,7 @@ export function NoteHighway({
   const latest = useRef({
     activeLanes,
     beatTimesMs,
+    countdown,
     gems,
     onFire,
     onFrame,
@@ -74,9 +78,11 @@ export function NoteHighway({
   const burstStarts = useRef(new Map<string, number>());
   // Looked up once: reading styles every frame can force a style recalc.
   const fontFamily = useRef("sans-serif");
+  const displayFont = useRef("sans-serif");
   latest.current = {
     activeLanes,
     beatTimesMs,
+    countdown,
     gems,
     onFire,
     onFrame,
@@ -88,7 +94,10 @@ export function NoteHighway({
     if (!container) {
       return;
     }
-    fontFamily.current = getComputedStyle(container).fontFamily;
+    const style = getComputedStyle(container);
+    fontFamily.current = style.fontFamily;
+    displayFont.current =
+      style.getPropertyValue("--font-display").trim() || style.fontFamily;
     const observer = new ResizeObserver(([entry]) => {
       setSize({
         height: entry?.contentRect.height ?? 0,
@@ -118,6 +127,7 @@ export function NoteHighway({
         {
           ...latest.current,
           burstStarts: burstStarts.current,
+          displayFont: displayFont.current,
           fontFamily: fontFamily.current,
           nowMs,
         }
@@ -159,7 +169,7 @@ export function NoteHighway({
 
   return (
     <div
-      className="relative h-[26rem] overflow-hidden rounded-2xl bg-zinc-950 sm:h-[30rem]"
+      className="relative h-[26rem] overflow-hidden rounded-3xl bg-stage shadow-[0_24px_70px_-24px_rgb(0_0_0/0.9)] ring-1 ring-white/8 sm:h-[30rem]"
       ref={containerRef}
     >
       <canvas
@@ -174,12 +184,19 @@ export function NoteHighway({
           key={combo.multiplier}
         >
           <span
-            className={`fade-in zoom-in-75 animate-in font-black text-3xl tabular-nums duration-200 ${combo.onFire ? "text-amber-400" : "text-white"}`}
+            className={`fade-in zoom-in-50 animate-in font-extrabold font-heading text-5xl tabular-nums leading-none duration-300 ${
+              combo.onFire
+                ? "text-stage-gradient drop-shadow-[0_0_14px_var(--neon)]"
+                : "text-white drop-shadow-[0_0_10px_rgb(255_255_255/0.3)]"
+            }`}
           >
             ×{combo.multiplier}
           </span>
-          <span className="text-xs text-zinc-400 tabular-nums">
-            {combo.streak} in a row{combo.onFire ? " · on fire!" : ""}
+          <span className="mt-1 font-medium text-muted-foreground text-xs tabular-nums">
+            {combo.streak} in a row
+            {combo.onFire ? (
+              <span className="text-gold"> · on fire!</span>
+            ) : null}
           </span>
         </div>
       ) : null}
@@ -193,10 +210,12 @@ export function NoteHighway({
             top: geometry.strikeY + geometry.radius + 26,
           }}
         >
-          <span className={`font-bold text-xl ${TONE_CLASSES[feedback.tone]}`}>
+          <span
+            className={`font-extrabold font-heading text-2xl ${TONE_CLASSES[feedback.tone]}`}
+          >
             {feedback.label}
           </span>
-          <span className="text-xs text-zinc-300 tabular-nums">
+          <span className="text-muted-foreground text-xs tabular-nums">
             {feedback.detail}
           </span>
         </div>

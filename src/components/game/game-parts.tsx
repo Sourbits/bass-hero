@@ -64,10 +64,21 @@ export function toFeedback(
   };
 }
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({
+  label,
+  tone = "",
+  value,
+}: {
+  label: string;
+  /** A text color class for the number. */
+  tone?: string;
+  value: number | string;
+}) {
   return (
     <div className="flex flex-col items-center">
-      <span className="font-semibold text-xl tabular-nums sm:text-2xl">
+      <span
+        className={`font-bold font-heading text-xl tabular-nums sm:text-2xl ${tone}`}
+      >
         {value}
       </span>
       <span className="text-muted-foreground text-xs">{label}</span>
@@ -83,15 +94,19 @@ export function comboOf({ multiplier, streak }: ScoreSummary) {
 /** The running score, the combo, and the count of each rating. */
 export function ScoreBar({ summary }: { summary: ScoreSummary }) {
   return (
-    <div className="grid grid-cols-5 gap-2 rounded-2xl border p-4">
-      <Stat label="Score" value={summary.score.toLocaleString("en-US")} />
+    <div className="grid grid-cols-5 gap-2 rounded-3xl border bg-card p-4">
+      <Stat
+        label="Score"
+        tone="text-gold"
+        value={summary.score.toLocaleString("en-US")}
+      />
       <Stat
         label={`${summary.streak} in a row`}
         value={`×${summary.multiplier}`}
       />
-      <Stat label="Perfect" value={summary.counts.perfect} />
-      <Stat label="Good" value={summary.counts.good} />
-      <Stat label="Miss" value={summary.counts.miss} />
+      <Stat label="Perfect" tone="text-good" value={summary.counts.perfect} />
+      <Stat label="Good" tone="text-cool" value={summary.counts.good} />
+      <Stat label="Miss" tone="text-bad" value={summary.counts.miss} />
     </div>
   );
 }

@@ -1,0 +1,22 @@
+<svg
+  aria-label="Bass Hero"
+  role="img"
+  viewBox="0 0 32 32"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <title>Bass Hero</title>
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#f4c44f" />
+      <stop offset="1" stop-color="#ec3f97" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M16 30.5C10.5 27 2.5 17.5 2.5 9.5 2.5 4.5 8.5 1.5 16 1.5s13.5 3 13.5 8c0 8-8 17.5-13.5 21Z"
+    fill="url(#g)"
+  />
+  <path
+    d="M18.2 5.5 10.8 17.3h4.8l-1.9 9.2 7.8-12.6h-4.8l1.5-8.4Z"
+    fill="#0d0c1d"
+  />
+</svg>

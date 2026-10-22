@@ -12,6 +12,7 @@ import {
   toGems,
 } from "@/components/game/game-parts";
 import { NoteHighway } from "@/components/game/note-highway";
+import { RunResults } from "@/components/game/results";
 import { type RunPhase, useGameRun } from "@/components/game/use-game-run";
 import { Kbd } from "@/components/kbd";
 import { Button } from "@/components/ui/button";
@@ -25,11 +26,10 @@ import {
 } from "@/game/note-sets";
 import { type Position, positionKey, positionMidi } from "@/game/positions";
 import { loadPractice, savePractice } from "@/game/practice-setting";
-import { type ScoreSummary, summarize } from "@/game/score";
+import { summarize } from "@/game/score";
 import { onDataReplaced } from "@/game/storage-events";
 import { loadTempo, saveTempo, TEMPO } from "@/game/tempo-setting";
 import { STRINGS } from "@/instrument/bass";
-import { describeOffset } from "@/timing/describe";
 import { loadLatencyOffset } from "@/timing/latency-setting";
 
 /** Every position up to the 12th fret, for the custom picker. */
@@ -173,7 +173,13 @@ export function PlayGame() {
       <ScoreBar summary={summary} />
 
       {phase === "finished" ? (
-        <RunSummary demo={demo} summary={summary} total={notes.length} />
+        <RunResults
+          demo={demo}
+          summary={summary}
+          title="Run complete"
+          total={notes.length}
+          unlocked={run.unlocked}
+        />
       ) : null}
 
       <Button
@@ -181,7 +187,7 @@ export function PlayGame() {
         disabled={phase === "starting" || positions.length === 0}
         onClick={playing ? run.stop : start}
         size="lg"
-        variant={playing ? "outline" : "default"}
+        variant={playing ? "outline" : "stage"}
       >
         {buttonLabel}
         <Kbd>{playing ? "Esc" : "Space"}</Kbd>
@@ -285,40 +291,6 @@ function PlaySettings({
   );
 }
 
-function RunSummary({
-  demo,
-  summary,
-  total,
-}: {
-  demo: boolean;
-  summary: ScoreSummary;
-  total: number;
-}) {
-  const average = summary.averageOffsetMs;
-  const suggestCalibrating =
-    !demo && average !== null && Math.abs(average) > 30;
-  return (
-    <section className="flex flex-col gap-2 rounded-2xl border p-6">
-      <h2 className="font-semibold text-xl">Run complete</h2>
-      <p>
-        {summary.counts.perfect} Perfect, {summary.counts.good} Good,{" "}
-        {summary.counts.miss} Miss, out of {total} notes. Score{" "}
-        {summary.score.toLocaleString("en-US")}. Longest streak{" "}
-        {summary.maxStreak}
-        {summary.fullCombo ? ": a full combo!" : "."}
-      </p>
-      <p className="text-muted-foreground">
-        {average === null
-          ? "No notes were hit, so there's no average timing."
-          : `Average timing of your hits: ${describeOffset(average)}.`}
-        {suggestCalibrating
-          ? " If most hits lean the same way, try calibrating."
-          : ""}
-      </p>
-    </section>
-  );
-}
-
 /** The set's notes on the neck. For a custom set, tapping picks notes. */
 function NotesLegend({
   isCustom,
@@ -337,7 +309,7 @@ function NotesLegend({
     [positions]
   );
   return (
-    <section className="flex flex-col gap-3 rounded-2xl border p-4 sm:p-6">
+    <section className="flex flex-col gap-3 rounded-3xl border bg-card p-4 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="font-semibold">
           {isCustom ? "Pick your notes" : "Notes in this set"}

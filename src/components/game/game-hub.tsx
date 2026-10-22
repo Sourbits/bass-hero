@@ -1,5 +1,6 @@
 "use client";
 
+import { CrosshairIcon, EarIcon, LayersIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { EarTraining } from "@/components/game/ear-training";
 import { LevelGame } from "@/components/game/level-game";
@@ -7,20 +8,20 @@ import { WeakSpots } from "@/components/game/weak-spots";
 
 const MODES = [
   {
-    description:
-      "Climb from Easy to Demon. Each level adds notes, speeds up and moves around the neck more.",
+    description: "Climb from Easy to Demon, one level at a time.",
+    icon: LayersIcon,
     id: "levels",
     label: "Levels",
   },
   {
-    description:
-      "Drills the notes you miss most, from your fretboard heat map.",
+    description: "Drill the notes you miss most.",
+    icon: CrosshairIcon,
     id: "weak-spots",
     label: "Weak spots",
   },
   {
-    description:
-      "The game plays a note; find it on your bass by ear, with higher or lower hints.",
+    description: "Hear a note, then find it on your bass.",
+    icon: EarIcon,
     id: "ear",
     label: "Ear training",
   },
@@ -29,11 +30,13 @@ const MODES = [
 type ModeId = (typeof MODES)[number]["id"];
 
 function ModeTab({
+  icon: Icon,
   id,
   label,
   onChoose,
   selected,
 }: {
+  icon: typeof LayersIcon;
   id: ModeId;
   label: string;
   onChoose: (id: ModeId) => void;
@@ -43,15 +46,16 @@ function ModeTab({
   return (
     <button
       aria-selected={selected}
-      className={`flex-1 border-b-2 px-2 py-2 font-semibold text-sm transition-colors ${
+      className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-1.5 py-2.5 font-bold font-heading text-sm transition-colors sm:text-base ${
         selected
-          ? "border-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground"
+          ? "bg-secondary text-foreground shadow-[inset_0_-2px_0_var(--gold)]"
+          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
       }`}
       onClick={choose}
       role="tab"
       type="button"
     >
+      <Icon aria-hidden className="hidden size-4 shrink-0 sm:block" />
       {label}
     </button>
   );
@@ -65,9 +69,13 @@ export function GameHub() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2">
-        <div className="flex border-b" role="tablist">
+        <div
+          className="flex gap-1 rounded-2xl border bg-card p-1"
+          role="tablist"
+        >
           {MODES.map((entry) => (
             <ModeTab
+              icon={entry.icon}
               id={entry.id}
               key={entry.id}
               label={entry.label}
