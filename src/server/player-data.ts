@@ -12,8 +12,9 @@ import {
 export interface Sqlite {
   exec: (sql: string) => void;
   prepare: (sql: string) => {
-    get: (...params: string[]) => unknown;
-    run: (...params: string[]) => unknown;
+    all: (...params: (number | string)[]) => unknown[];
+    get: (...params: (number | string)[]) => unknown;
+    run: (...params: (number | string)[]) => unknown;
   };
 }
 

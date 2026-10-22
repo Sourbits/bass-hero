@@ -4,12 +4,14 @@ import { SettingsIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAccount } from "@/components/account/account-provider";
+import { useWaitingRequests } from "@/components/friends/friends-api";
 
 const TABS = [
   { href: "/game", label: "Game" },
   { href: "/play", label: "Practice" },
   { href: "/notes", label: "Learn" },
   { href: "/achievements", label: "Achievements" },
+  { href: "/friends", label: "Friends" },
   { href: "/tuner", label: "Tuner" },
   { href: "/calibrate", label: "Calibrate" },
 ] as const;
@@ -18,6 +20,7 @@ const TABS = [
 export function SiteNav() {
   const pathname = usePathname();
   const { loading, user } = useAccount();
+  const waiting = useWaitingRequests(Boolean(user?.username), pathname);
   const onAccount = pathname === "/account";
   const onSettings = pathname === "/settings";
   return (
@@ -43,6 +46,12 @@ export function SiteNav() {
               key={href}
             >
               {label}
+              {href === "/friends" && waiting > 0 ? (
+                <span className="ms-1 rounded-full bg-amber-500 px-1.5 py-px font-semibold text-[0.65rem] text-white tabular-nums">
+                  {waiting}
+                  <span className="sr-only"> friend requests waiting</span>
+                </span>
+              ) : null}
             </Link>
           );
         })}
@@ -66,7 +75,7 @@ export function SiteNav() {
           } ${loading ? "invisible" : ""}`}
           href="/account"
         >
-          {user ? user.name : "Sign in"}
+          {user ? (user.username ?? user.name) : "Sign in"}
         </Link>
       </nav>
     </header>

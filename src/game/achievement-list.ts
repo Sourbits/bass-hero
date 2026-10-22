@@ -98,7 +98,8 @@ export function runFacts(event: AchievementEvent): RunFacts | null {
   };
 }
 
-const ALL_STARS = TIER_ORDER.length * LEVELS_PER_TIER * 3;
+/** Stars there are to earn: 3 on every level. */
+export const ALL_STARS = TIER_ORDER.length * LEVELS_PER_TIER * 3;
 const OPEN_STRINGS: Position[] = STRINGS.map((string) => ({
   fret: 0,
   string,
@@ -112,13 +113,14 @@ function frets(strings: readonly Position["string"][], highest: number) {
 
 const E_STRING = frets(["E"], 12);
 const FIRST_POSITION = frets(STRINGS, 5);
-const WHOLE_NECK = frets(STRINGS, 12);
+/** Every position up to the 12th fret. */
+export const WHOLE_NECK = frets(STRINGS, 12);
 
 function starsOn(progress: Progress, tier: TierId, level: number) {
   return progress.records[levelKey({ level, tier })]?.stars ?? 0;
 }
 
-function totalStars(progress: Progress) {
+export function totalStars(progress: Progress) {
   return Object.values(progress.records).reduce(
     (sum, record) => sum + record.stars,
     0
@@ -126,7 +128,7 @@ function totalStars(progress: Progress) {
 }
 
 /** How many of these positions are green on the heat map. */
-function greens(stats: NoteStats, positions: Position[]): Goal {
+export function greens(stats: NoteStats, positions: Position[]): Goal {
   return {
     current: positions.filter(
       (position) => (stats[positionKey(position)]?.mastery ?? 0) >= WEAK_BELOW

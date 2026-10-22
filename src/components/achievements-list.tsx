@@ -74,14 +74,18 @@ function GoalBar({
   );
 }
 
-function AchievementCard({
+/**
+ * One achievement: unlocked with its date, or locked with a progress bar
+ * when a world (your own saved data) is given to measure it against.
+ */
+export function AchievementCard({
   achievement,
   unlockedAt,
   world,
 }: {
   achievement: Achievement;
   unlockedAt: number | undefined;
-  world: World;
+  world?: World;
 }) {
   return (
     <li
@@ -121,9 +125,10 @@ function AchievementCard({
               year: "numeric",
             })}
           </p>
-        ) : (
+        ) : null}
+        {!unlockedAt && world ? (
           <GoalBar achievement={achievement} world={world} />
-        )}
+        ) : null}
       </div>
     </li>
   );

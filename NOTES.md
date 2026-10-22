@@ -1,8 +1,80 @@
 # Bass Hero notes
 
-## Latest: settings, left-handed mode, keyboard shortcuts
+## Latest: friends
 
-On the `settings-and-shortcuts` branch (from `achievements`).
+On the `friends` branch (from `settings-and-shortcuts`).
+
+- **Usernames:**
+  - 3 to 20 letters, numbers, `_` or `.`, unique ignoring case, and shown
+    the way you typed them ("BassBuddy").
+  - New accounts pick one when signing up; it replaces the old Name field.
+  - Existing accounts are asked for one on the Account and Friends pages.
+  - You can change yours on the Account page, and sign in with your
+    username or your email.
+- **The Friends tab:**
+  - Add a friend by username. They get a request, and once they accept,
+    you can both see each other's stats.
+  - If they had already asked you, adding them accepts instead.
+  - A number on the tab shows requests waiting for you.
+  - Requests can be declined or cancelled, and friends removed, from their
+    profile.
+- **What friends see:**
+  - A card per friend: stars (out of 120), achievements (out of 39), their
+    furthest level, and notes played.
+  - Tap one for their profile: levels cleared, notes known (green on the
+    heat map, out of 52), days in a row, best ear streak, when they last
+    played, and every achievement with the date they got it.
+  - Your own card ("you") sits at the top to compare.
+  - Never sent to friends: your email, your heat map note by note, your
+    settings.
+- **Choices I made:**
+  - Requests need accepting, so nobody can see your stats without your OK.
+  - Friends see a summary, not your raw saved data.
+  - A friend's numbers are as of their last save, and only what's saved to
+    their account counts.
+  - The waiting-requests number is checked when you change pages or come
+    back to the tab, not live.
+- **How it's built:**
+  - Better Auth's username plugin. It added `username` and
+    `displayUsername` columns, with a unique index, to the accounts table
+    on its own the first time the server started.
+  - A `friendship` table: one row per pair, "pending" until accepted.
+  - The `/api/friends` route: GET lists, POST sends or accepts, DELETE
+    declines, cancels or removes.
+  - The summary is worked out in `src/game/player-summary.ts`.
+- **Test players** (logins in `data/dev-test-account.json`):
+  - **BassBuddy**, with made-up progress: 38 stars, up to Medium 4.
+  - **LowEnd.C**, with no progress.
+  - The old "testing" account is now **TestPlayer**.
+  - Your account ("yours") has no username yet, so it'll ask you to pick
+    one.
+- **Checked in the browser,** as TestPlayer against BassBuddy and
+  LowEnd.C:
+  - Picking a username: a taken one ("bassbuddy") was refused, then
+    "TestPlayer" saved and showed in the nav at once.
+  - BassBuddy's request showed a "1" on the tab, and accepting it showed
+    their card with the right numbers.
+  - Their profile listed their stats and achievements.
+  - A request to "lowend.c" was sent and then cancelled.
+  - Removing BassBuddy went back to the list, with no friends left.
+  - The API's messages: unknown username, yourself, already asked, and
+    signed out.
+- **Limits:**
+  - Like accounts, friends only work on this computer until the site is
+    hosted online.
+  - Finding someone takes their exact username: there's no search or
+    suggestions.
+  - There's no blocking. Removing someone ends the friendship, but they can
+    ask again.
+- **Dev server fix:** the reload loop came back once, so the dev
+  compiler's disk cache is now off (`turbopackFileSystemCacheForDev:
+  false` in `next.config.ts`). If pages ever reload in a loop again,
+  restarting the server is enough.
+- **Nothing new to install.**
+
+## Earlier: settings, left-handed mode, keyboard shortcuts
+
+On the `settings-and-shortcuts` branch (from `achievements`). Committed.
 
 - **Settings page:** the gear icon at the top right. It has:
   - **Left-handed mode.**

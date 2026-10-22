@@ -46,7 +46,13 @@ export interface Account {
   status: SyncStatus;
   /** Saves this browser's progress to the account now. */
   syncNow: () => Promise<void>;
-  user: { email: string; id: string; name: string } | null;
+  user: {
+    email: string;
+    id: string;
+    name: string;
+    /** As they typed it, such as "BassAlex"; null until they pick one. */
+    username: string | null;
+  } | null;
 }
 
 const AccountContext = createContext<Account>({
@@ -183,7 +189,14 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       signOut,
       status,
       syncNow,
-      user: user ? { email: user.email, id: user.id, name: user.name } : null,
+      user: user
+        ? {
+            email: user.email,
+            id: user.id,
+            name: user.name,
+            username: user.displayUsername ?? user.username ?? null,
+          }
+        : null,
     }),
     [isPending, signOut, status, syncNow, user]
   );
