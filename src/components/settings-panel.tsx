@@ -11,6 +11,11 @@ import {
 import { useSettings } from "@/components/settings-provider";
 import { SHORTCUT_HELP } from "@/config/shortcuts";
 import {
+  DEBUG_CHANGED_EVENT,
+  isDebugLogOn,
+  setDebugLogOn,
+} from "@/debug/debug-log";
+import {
   type GameOptions,
   loadProgress,
   NEW_PROGRESS,
@@ -179,6 +184,26 @@ function ShortcutList() {
   );
 }
 
+function DebugLogSwitch() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const check = () => setOn(isDebugLogOn());
+    check();
+    window.addEventListener(DEBUG_CHANGED_EVENT, check);
+    return () => window.removeEventListener(DEBUG_CHANGED_EVENT, check);
+  }, []);
+  return (
+    <Section title="Testing">
+      <Toggle checked={on} label="Debug log" onChange={setDebugLogOn}>
+        For testing with a real bass: writes down everything the game hears
+        (each pluck, its note, buzz and timing, and tuner readings) to a file on
+        this computer, under data/debug-logs. Only works while the game runs
+        locally, and stays on this device.
+      </Toggle>
+    </Section>
+  );
+}
+
 /** Everything you can set, on one page. */
 export function SettingsPanel() {
   const { settings, update } = useSettings();
@@ -202,6 +227,7 @@ export function SettingsPanel() {
       <LevelOptions />
       <ThisDevice />
       <ShortcutList />
+      <DebugLogSwitch />
     </div>
   );
 }

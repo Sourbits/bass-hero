@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import { AccountProvider } from "@/components/account/account-provider";
 import { AchievementToasts } from "@/components/achievement-toasts";
+import { DebugBadge } from "@/components/debug-badge";
 import { SettingsProvider } from "@/components/settings-provider";
 import { SiteNav } from "@/components/site-nav";
 import "./globals.css";
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <SiteNav />
             {children}
             <AchievementToasts />
+            <DebugBadge />
           </SettingsProvider>
         </AccountProvider>
       </body>

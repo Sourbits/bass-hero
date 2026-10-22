@@ -1,8 +1,40 @@
 # Bass Hero notes
 
-## Latest: UI polish
+## Latest: debug log, for testing with a real bass
 
-On the `ui-polish` branch (from `friends`).
+On the `debug-log` branch (from `ui-polish`).
+
+- **Turn it on:** Settings → Testing → Debug log. It's per browser, so
+  turn it on in the browser you play in. A red "Debug log on" badge shows
+  while it's recording.
+- **Where it goes:** `data/debug-logs/YYYY-MM-DD.jsonl` on this computer,
+  one event per line. `data/` is never committed. The dev server saves it;
+  a built site turns it away.
+- **What it records:**
+  - The audio setup: sample rate and latency. For a real mic, also which
+    mic and whether the browser kept echo cancellation, noise suppression
+    and auto gain off.
+  - The start of each run: mode, level, BPM, latency offset, timing
+    windows and every charted note.
+  - Every pluck: when, the note heard (name, Hz, cents), buzz in dB, how
+    loud, and how it was judged (which note, offset, rating and reason).
+    It also records plucks with no note near enough to judge.
+  - Notes that went unplayed, and each run's totals.
+  - Ear training: each prompt, and each pluck heard, with whether it was
+    ignored ("before listening started: maybe the game's own note") or
+    judged higher, lower or correct.
+  - The tuner: 4 readings a second while it hears a note (note, Hz, cents,
+    string, direction, clarity, level, buzz).
+  - Calibration: each pluck's offset from its beat, and the result.
+- **Checked:** a demo level, the tuner with a test tone and a demo
+  calibration all logged as expected, and writing the file didn't upset
+  the dev server. I moved those demo entries out, so the log starts empty
+  for the real session.
+- **Nothing new to install.**
+
+## Earlier: UI polish
+
+On the `ui-polish` branch (from `friends`). Committed.
 
 - **A dark "stage" look, everywhere:**
   - Ink-blue surfaces lit by soft stage lights at the top.

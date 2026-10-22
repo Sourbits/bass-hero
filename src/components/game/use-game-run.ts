@@ -11,12 +11,15 @@ import { toFeedback } from "@/components/game/game-parts";
 import type { HighwayFeedback } from "@/components/game/note-highway";
 import { releaseFocus } from "@/components/use-shortcuts";
 import { TIMING, type TimingConfig } from "@/config/timing";
+import { debugLog } from "@/debug/debug-log";
+import { logPluck, logRunEnd, logRunStart, logUnplayed } from "@/debug/log-run";
 import type { RunMode } from "@/game/achievement-stats";
 import { reportAchievement } from "@/game/achievements";
 import { type Chart, type ScheduledNote, scheduleChart } from "@/game/chart";
 import { demoPerformance } from "@/game/demo";
 import type { Level } from "@/game/difficulty";
 import { outcomesFromRun, saveOutcomes } from "@/game/note-stats";
+import { summarize } from "@/game/score";
 import { detectPlayedNotes } from "@/onset/played-notes";
 import { createJudge, type Judge, type Judgment } from "@/timing/judge";
 import { loadLatencyOffset } from "@/timing/latency-setting";
@@ -144,13 +147,14 @@ export function useGameRun() {
           demo,
           listen: (source) =>
             detectPlayedNotes(source, {
-              onNote: ({ buzzDb, note, onsetMs }) => {
+              onNote: (played) => {
                 const judge = judgeRef.current;
                 const judgment = judge?.judgeHit({
-                  buzzDb,
-                  midi: note?.midi ?? null,
-                  onsetMs,
+                  buzzDb: played.buzzDb,
+                  midi: played.note?.midi ?? null,
+                  onsetMs: played.onsetMs,
                 });
+                logPluck(played, judgment ?? null, notesRef.current);
                 if (judge && judgment) {
                   show(judge, [judgment]);
                 }
@@ -168,9 +172,17 @@ export function useGameRun() {
         });
         notesRef.current = scheduled;
         // The demo plays with no latency, so it needs no calibration offset.
-        judgeRef.current = createJudge(scheduled, {
+        const latencyOffsetMs = demo ? 0 : loadLatencyOffset();
+        judgeRef.current = createJudge(scheduled, { config, latencyOffsetMs });
+        logRunStart({
+          bpm: tempo,
           config,
-          latencyOffsetMs: demo ? 0 : loadLatencyOffset(),
+          demo,
+          guideTone: Boolean(guideTone),
+          latencyOffsetMs,
+          level: level ?? null,
+          mode,
+          notes: scheduled,
         });
         endsAtRef.current = (scheduled.at(-1)?.targetMs ?? 0) + OUTRO_MS;
         session.schedulePlucks?.(demoPerformance(scheduled));
@@ -203,10 +215,15 @@ export function useGameRun() {
       // If the page falls behind (a busy or background tab), plucks arrive
       // late, and going by the clock alone would miss notes that were played.
       const closed = judge.closeWindows(Math.min(nowMs, analyzedMsRef.current));
+      logUnplayed(closed, notesRef.current);
       show(judge, closed);
       if (judge.isComplete() && nowMs > endsAtRef.current) {
         judgeRef.current = null;
         setPhase("finished");
+        logRunEnd(
+          summarize(judge.judgments(), orderRef.current),
+          notesRef.current.length
+        );
         // Feeds the fretboard heat map. Demo runs aren't you playing.
         if (!demoRef.current) {
           saveOutcomes(outcomesFromRun(notesRef.current, judge.judgments()));
@@ -235,6 +252,9 @@ export function useGameRun() {
   );
 
   const stop = useCallback(async () => {
+    if (judgeRef.current) {
+      debugLog("run-stopped");
+    }
     judgeRef.current = null;
     await stopAudio();
     setPhase("idle");

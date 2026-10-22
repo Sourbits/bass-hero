@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { releaseFocus, useShortcuts } from "@/components/use-shortcuts";
 import { KEYS } from "@/config/shortcuts";
 import { CALIBRATION } from "@/config/timing";
+import { debugLog, r } from "@/debug/debug-log";
 import { reportAchievement } from "@/game/achievements";
 import type { DemoPluck } from "@/game/demo";
 import { detectOnsets } from "@/onset/onset-detector";
@@ -112,10 +113,20 @@ export function Calibration() {
     [stopAudio]
   );
 
-  const onOnset = (timeMs: number) => {
+  const onOnset = ({ peak, timeMs }: { peak: number; timeMs: number }) => {
     onsetsRef.current.push(timeMs);
     const index = nearestBeat(beatsRef.current, timeMs);
     const beat = beatsRef.current[index];
+    let beatName: string | null = null;
+    if (beat) {
+      beatName = beat.countIn ? "count-in" : beat.label;
+    }
+    debugLog("calibration-pluck", {
+      beat: beatName,
+      offsetMs: beat ? r(timeMs - beat.targetMs) : null,
+      onsetMs: r(timeMs),
+      peak: r(peak, 3),
+    });
     if (!beat) {
       return;
     }
@@ -144,12 +155,20 @@ export function Calibration() {
       const session = await startAudioSession({
         demo: demoMode,
         listen: (source) =>
-          detectOnsets(source, { onOnset: ({ timeMs }) => onOnset(timeMs) }),
+          detectOnsets(source, { onOnset: (onset) => onOnset(onset) }),
       });
       sessionRef.current = session;
 
       const scheduled = makeBeats(session.clock.now() + LEAD_IN_MS);
       beatsRef.current = scheduled;
+      debugLog("calibration-start", {
+        beats: scheduled.map((beat) => ({
+          beat: beat.countIn ? "count-in" : beat.label,
+          targetMs: r(beat.targetMs),
+        })),
+        demo: demoMode,
+        savedOffsetMs: loadLatencyOffset(),
+      });
       session.schedulePlucks?.(
         scheduled.map(
           (beat, index): DemoPluck => ({
@@ -183,6 +202,7 @@ export function Calibration() {
         minHits: CALIBRATION.minHits,
       });
       setResult(suggestion);
+      debugLog("calibration-result", { suggestion });
       if (suggestion) {
         setManualOffset(String(Math.round(suggestion.offsetMs)));
       }

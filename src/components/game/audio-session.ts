@@ -3,6 +3,7 @@ import type { AudioSource } from "@/audio/audio-source";
 import { createMicrophoneSource } from "@/audio/microphone-source";
 import { pluckAt } from "@/audio/play-note";
 import { createPluckSource } from "@/audio/pluck-source";
+import { debugLog, r } from "@/debug/debug-log";
 import type { DemoPluck } from "@/game/demo";
 import { midiToFrequency } from "@/pitch/notes";
 
@@ -57,6 +58,12 @@ export async function startAudioSession({
     await stop();
     throw error;
   }
+  debugLog("audio", {
+    baseLatencyMs: r(context.baseLatency * 1000),
+    demo,
+    outputLatencyMs: r(context.outputLatency * 1000),
+    sampleRate: context.sampleRate,
+  });
 
   return {
     clock: createAudioClock(context),

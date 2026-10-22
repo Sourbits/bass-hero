@@ -1,3 +1,4 @@
+import { debugLog } from "@/debug/debug-log";
 import type { AudioSource } from "./audio-source";
 import {
   createWebAudioSource,
@@ -36,6 +37,13 @@ export function createMicrophoneSource({
         noiseSuppression: false,
         ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
       },
+    });
+    // Which mic the browser picked, and whether it honored the settings.
+    const [input] = stream.getAudioTracks();
+    debugLog("mic", {
+      label: input?.label ?? null,
+      sampleRate: context.sampleRate,
+      settings: input?.getSettings() ?? null,
     });
 
     return {

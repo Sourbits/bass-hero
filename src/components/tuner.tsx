@@ -13,10 +13,11 @@ import { Button } from "@/components/ui/button";
 import { useShortcuts } from "@/components/use-shortcuts";
 import { KEYS } from "@/config/shortcuts";
 import { TIMING } from "@/config/timing";
+import { debugLog, isDebugLogOn, r } from "@/debug/debug-log";
 import { reportAchievement } from "@/game/achievements";
 import { type BassString, OPEN_STRING_MIDI, STRINGS } from "@/instrument/bass";
 import { measureBuzz } from "@/onset/buzz";
-import { detectNotes } from "@/pitch/note-detector";
+import { detectNotes, type NoteReading } from "@/pitch/note-detector";
 import { createNoteSmoother } from "@/pitch/note-smoother";
 import {
   midiToFrequency,
@@ -325,6 +326,39 @@ function statusText(status: Status, testTone: TestTone | null) {
   }
 }
 
+/** How often the tuner writes to the debug log while it hears a note, in ms. */
+const TUNER_LOG_EVERY_MS = 250;
+let lastTunerLog = 0;
+
+/** A few tuner readings a second, for the debug log. */
+function logTunerReading(
+  reading: NoteReading,
+  shown: Note | null,
+  picked: StringChoice,
+  buzzDb: number | null
+) {
+  const now = performance.now();
+  if (!(shown && isDebugLogOn()) || now - lastTunerLog < TUNER_LOG_EVERY_MS) {
+    return;
+  }
+  lastTunerLog = now;
+  const heard = tuneString(
+    shown.frequency,
+    picked === "auto" ? nearestString(shown.frequency) : picked
+  );
+  debugLog("tuner", {
+    buzzDb: r(buzzDb),
+    cents: r(heard.cents, 0),
+    clarity: r(reading.clarity, 3),
+    direction: heard.direction,
+    hz: r(shown.frequency, 2),
+    levelDb: r(reading.levelDb),
+    note: `${shown.name}${shown.octave}`,
+    picked,
+    string: heard.string,
+  });
+}
+
 /** A bass tuner: tells you which way to turn each string's peg. */
 export function Tuner() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
@@ -409,20 +443,23 @@ export function Tuner() {
         }
         setLevelDb(reading.levelDb);
         const samples = history.slice(reading.windowStart, reading.time);
+        let measured: number | null = null;
         if (reading.note && samples) {
-          const measured = measureBuzz(
+          measured = measureBuzz(
             samples,
             history.sampleRate(),
             reading.note.frequency
           );
+          const latest = measured;
           setBuzzDb((previous) =>
             previous === null
-              ? measured
-              : previous + BUZZ_RESPONSE * (measured - previous)
+              ? latest
+              : previous + BUZZ_RESPONSE * (latest - previous)
           );
         } else if (!shown) {
           setBuzzDb(null);
         }
+        logTunerReading(reading, shown, choiceRef.current, measured);
       },
     });
     const stopAll = async () => {

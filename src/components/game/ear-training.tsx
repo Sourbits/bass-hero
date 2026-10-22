@@ -22,6 +22,7 @@ import { releaseFocus, useShortcuts } from "@/components/use-shortcuts";
 import type { TierId } from "@/config/difficulty";
 import { EAR_TRAINING } from "@/config/ear-training";
 import { KEYS } from "@/config/shortcuts";
+import { debugLog, r } from "@/debug/debug-log";
 import { reportAchievement } from "@/game/achievements";
 import { type Level, levelSettings } from "@/game/difficulty";
 import {
@@ -182,6 +183,24 @@ function ReplayChip({ prompt }: { prompt: EarPrompt }) {
   );
 }
 
+/** Why ear training ignored a pluck, for the debug log. */
+function ignoredReason(
+  hasNote: boolean,
+  listening: boolean,
+  onsetMs: number,
+  listenFromMs: number
+) {
+  if (!hasNote) {
+    return "no clear note";
+  }
+  if (!listening) {
+    return "not listening";
+  }
+  return onsetMs < listenFromMs
+    ? "before listening started: maybe the game's own note"
+    : "no prompt";
+}
+
 /**
  * Ear training: the game plays a note, then listens while you find it on
  * your bass. Hints say higher or lower; after three tries it shows where the
@@ -247,6 +266,13 @@ export function EarTraining() {
     const at = session.clock.now() + 150;
     session.playAloud([{ midi: prompt.midi, timeMs: at }]);
     listenFromRef.current = at + EAR_TRAINING.listenAfterMs;
+    debugLog("ear-prompt", {
+      index: viewRef.current.index,
+      listenFromMs: r(listenFromRef.current),
+      note: midiToName(prompt.midi),
+      playedAtMs: r(at),
+      where: whereText(prompt.position),
+    });
     update({ ...viewRef.current, stage: "prompt" });
     later(EAR_TRAINING.listenAfterMs + 150, () => {
       if (viewRef.current.stage === "prompt") {
@@ -307,15 +333,34 @@ export function EarTraining() {
     [finishRound, playPrompt, update]
   );
 
-  onNoteRef.current = ({ note, onsetMs }: PlayedNote) => {
+  onNoteRef.current = (played: PlayedNote) => {
+    const { note, onsetMs } = played;
     const { current } = viewRef;
     const prompt = promptsRef.current[current.index];
     const listening = current.stage === "listen" || current.stage === "prompt";
+    const heard = {
+      buzzDb: r(played.buzzDb),
+      heard: note ? `${note.name}${note.octave}` : null,
+      hz: r(note?.frequency, 2),
+      onsetMs: r(onsetMs),
+      peak: r(played.peak, 3),
+      prompt: prompt ? midiToName(prompt.midi) : null,
+    };
     if (!(note && prompt && listening) || onsetMs < listenFromRef.current) {
+      debugLog("ear-pluck", {
+        ...heard,
+        ignored: ignoredReason(
+          Boolean(note),
+          listening,
+          onsetMs,
+          listenFromRef.current
+        ),
+      });
       return;
     }
     const tries = current.tries + 1;
     const verdict = judgeAnswer(prompt.midi, note.midi);
+    debugLog("ear-pluck", { ...heard, try: tries, verdict });
     if (verdict === "correct") {
       const results = [...current.results, { prompt, solved: true, tries }];
       update({ ...current, results, stage: "answered", tries });
@@ -355,6 +400,10 @@ export function EarTraining() {
     const { positions } = levelSettings(progress.current);
     tierRef.current = progress.current.tier;
     promptsRef.current = earPrompts(positions, EAR_TRAINING.prompts);
+    debugLog("ear-start", {
+      level: `${progress.current.tier} ${progress.current.level}`,
+      prompts: promptsRef.current.map(({ midi }) => midiToName(midi)),
+    });
     demoRef.current = isDemoMode();
     update({ ...START_VIEW, stage: "starting" });
     try {
