@@ -34,6 +34,9 @@ export function isDebugLogOn() {
 
 /** Turns the debug log on or off, for this browser only. */
 export function setDebugLogOn(next: boolean) {
+  if (isDebugLogOn() === next) {
+    return;
+  }
   try {
     if (next) {
       window.localStorage.setItem(STORAGE_KEY, "on");

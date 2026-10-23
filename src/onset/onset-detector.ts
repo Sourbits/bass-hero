@@ -109,6 +109,8 @@ export function createOnsetDetector({
   let mute: Mute | null = null;
   let frameStartIndex = 0;
   let frameStartTime = 0;
+  /** Where the last reported pluck started, in samples. */
+  let lastStart = Number.NEGATIVE_INFINITY;
 
   const reset = (rate: number) => {
     sampleRate = rate;
@@ -124,6 +126,7 @@ export function createOnsetDetector({
     recentLevel = 0;
     quietRun = 0;
     mute = null;
+    lastStart = Number.NEGATIVE_INFINITY;
   };
 
   const sampleAt = (index: number) => history[index % history.length] ?? 0;
@@ -208,10 +211,16 @@ export function createOnsetDetector({
   };
 
   const report = (start: number, peak: number) => {
+    const gap = (minGapMs / 1000) * sampleRate;
+    // A note that swells after its pluck (a low string through a small mic)
+    // can look like a second pluck. Its start is pinned back to the swell,
+    // so check the gap on the pinned starts, not just on detection times.
+    if (start < lastStart + gap) {
+      return;
+    }
+    lastStart = start;
     const time = frameStartTime + (start - frameStartIndex) / sampleRate;
-    quietUntilBlock = Math.floor(
-      (start + (minGapMs / 1000) * sampleRate) / BLOCK_SIZE
-    );
+    quietUntilBlock = Math.floor((start + gap) / BLOCK_SIZE);
     onOnset({ peak, timeMs: time * 1000 });
   };
 

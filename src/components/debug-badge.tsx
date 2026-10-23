@@ -6,16 +6,23 @@ import {
   DEBUG_CHANGED_EVENT,
   isDebugLogOn,
   sendDebugLogNow,
+  setDebugLogOn,
 } from "@/debug/debug-log";
 
 /**
  * A small red "Debug log on" badge, so it's clear when the game is writing
- * down what it hears. Also sends the last of the log when the page closes.
+ * down what it hears. Also sends the last of the log when the page closes,
+ * and turns the log on or off for a link ending in ?debug=on or ?debug=off.
  */
 export function DebugBadge() {
   const [on, setOn] = useState(false);
 
   useEffect(() => {
+    // A link with ?debug=on (or off) switches the log, for easy testing.
+    const asked = new URLSearchParams(window.location.search).get("debug");
+    if (asked === "on" || asked === "off") {
+      setDebugLogOn(asked === "on");
+    }
     const check = () => setOn(isDebugLogOn());
     check();
     window.addEventListener(DEBUG_CHANGED_EVENT, check);

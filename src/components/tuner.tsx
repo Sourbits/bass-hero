@@ -27,9 +27,9 @@ import {
 } from "@/pitch/notes";
 import {
   IN_TUNE_CENTS,
-  nearestString,
+  type OpenStringReading,
+  readOpenString,
   type StringTuning,
-  tuneString,
 } from "@/pitch/string-tuning";
 
 const LEVEL_FLOOR_DB = -60;
@@ -155,7 +155,7 @@ function TuningDisplay({
   tuning,
 }: {
   heard: Note | null;
-  tuning: StringTuning | null;
+  tuning: OpenStringReading | null;
 }) {
   if (!(tuning && heard)) {
     return (
@@ -188,6 +188,7 @@ function TuningDisplay({
       <span className="text-muted-foreground text-sm tabular-nums">
         Hearing {heard.name.replace("#", "♯")}
         {heard.octave} · {heard.frequency.toFixed(1)} Hz
+        {tuning.overtone ? " (its overtone, an octave up)" : ""}
       </span>
     </div>
   );
@@ -342,20 +343,18 @@ function logTunerReading(
     return;
   }
   lastTunerLog = now;
-  const heard = tuneString(
-    shown.frequency,
-    picked === "auto" ? nearestString(shown.frequency) : picked
-  );
+  const heard = readOpenString(shown.frequency, picked);
   debugLog("tuner", {
     buzzDb: r(buzzDb),
-    cents: r(heard.cents, 0),
+    cents: r(heard?.cents, 0),
     clarity: r(reading.clarity, 3),
-    direction: heard.direction,
+    direction: heard?.direction ?? "not an open string",
     hz: r(shown.frequency, 2),
     levelDb: r(reading.levelDb),
     note: `${shown.name}${shown.octave}`,
+    overtone: heard?.overtone ?? false,
     picked,
-    string: heard.string,
+    string: heard?.string ?? null,
   });
 }
 
@@ -393,12 +392,7 @@ export function Tuner() {
     []
   );
 
-  const tuning = note
-    ? tuneString(
-        note.frequency,
-        choice === "auto" ? nearestString(note.frequency) : choice
-      )
-    : null;
+  const tuning = note ? readOpenString(note.frequency, choice) : null;
 
   const start = async () => {
     setStatus({ kind: "starting" });
@@ -417,13 +411,11 @@ export function Tuner() {
       onReading: (reading) => {
         const shown = smoother.update(reading);
         setNote(shown);
-        if (shown) {
-          // Remember the latest reading for each string, for the status row.
-          const picked = choiceRef.current;
-          const heard = tuneString(
-            shown.frequency,
-            picked === "auto" ? nearestString(shown.frequency) : picked
-          );
+        // Remember the latest reading for each string, for the status row.
+        const heard = shown
+          ? readOpenString(shown.frequency, choiceRef.current)
+          : null;
+        if (heard) {
           statusesRef.current = {
             ...statusesRef.current,
             [heard.string]: heard,

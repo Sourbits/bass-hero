@@ -3,12 +3,13 @@ import { levelSettings } from "./difficulty";
 import {
   type EarPrompt,
   type EarResult,
+  earLevelPositions,
   earOutcomes,
   earPrompts,
   judgeAnswer,
   scoreEar,
 } from "./ear-training";
-import { positionKey } from "./positions";
+import { positionKey, positionName } from "./positions";
 
 const PROMPT: EarPrompt = { midi: 31, position: { fret: 3, string: "E" } };
 const result = (tries: number, solved = true): EarResult => ({
@@ -80,5 +81,33 @@ describe("earOutcomes", () => {
         (outcome) => outcome.hit
       )
     ).toEqual([true, false, false]);
+  });
+});
+
+describe("ear levels", () => {
+  const names = (level: number) =>
+    earLevelPositions(level).map((position) => positionName(position));
+
+  test("start with the open strings", () => {
+    expect(names(1)).toEqual(["E1", "A1", "D2", "G2"]);
+  });
+
+  test("level 2 is the naturals on the E and A strings to the 3rd fret", () => {
+    expect(names(2).sort()).toEqual(["A1", "B1", "C2", "E1", "F1", "G1"]);
+  });
+
+  test("count each pitch once", () => {
+    // Up to the 12th fret: every note from E1 to G3, 28 in all.
+    expect(earLevelPositions(10)).toHaveLength(28);
+    const pitches = names(10);
+    expect(new Set(pitches).size).toBe(pitches.length);
+  });
+
+  test("never repeat one of the last two notes once there are four", () => {
+    const prompts = earPrompts(earLevelPositions(1), 60, 7);
+    for (const [index, prompt] of prompts.entries()) {
+      expect(prompt.midi).not.toBe(prompts[index - 1]?.midi);
+      expect(prompt.midi).not.toBe(prompts[index - 2]?.midi);
+    }
   });
 });

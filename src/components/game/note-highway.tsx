@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { drawHighway, type HighwayGem } from "@/components/game/draw-highway";
 import { useSettings } from "@/components/settings-provider";
+import { debugLog, r } from "@/debug/debug-log";
 import { highwayGeometry, laneX } from "@/game/layout";
 import type { BassString } from "@/instrument/bass";
 
@@ -35,14 +36,17 @@ interface NoteHighwayProps {
   showLanes?: boolean;
 }
 
+/** A frame later than this, in ms, is logged as a stutter. */
+const SLOW_FRAME_MS = 50;
+
 /** Half the width that feedback text may need, in px. */
 const FEEDBACK_HALF_WIDTH = 64;
 
 const TONE_CLASSES: Record<HighwayFeedback["tone"], string> = {
-  good: "text-cool drop-shadow-[0_0_10px_var(--cool)]",
+  good: "text-cool [text-shadow:0_0_12px_var(--cool)]",
   miss: "text-bad",
   neutral: "text-white",
-  perfect: "text-good drop-shadow-[0_0_12px_var(--good)]",
+  perfect: "text-good [text-shadow:0_0_12px_var(--good)]",
 };
 
 /**
@@ -146,9 +150,18 @@ export function NoteHighway({
       return;
     }
     let frame = 0;
+    let previous = 0;
     // The frame's own timestamp is steady, so notes move evenly.
     const tick = (frameTime: number) => {
       const now = getNow(frameTime);
+      // A frame that came late is a stutter you'd see: worth a log entry.
+      if (previous > 0 && frameTime - previous > SLOW_FRAME_MS) {
+        debugLog("slow-frame", {
+          gapMs: r(frameTime - previous),
+          nowMs: r(now),
+        });
+      }
+      previous = frameTime;
       draw(now);
       latest.current.onFrame?.(now);
       frame = requestAnimationFrame(tick);
@@ -186,8 +199,8 @@ export function NoteHighway({
           <span
             className={`fade-in zoom-in-50 animate-in font-extrabold font-heading text-5xl tabular-nums leading-none duration-300 ${
               combo.onFire
-                ? "text-stage-gradient drop-shadow-[0_0_14px_var(--neon)]"
-                : "text-white drop-shadow-[0_0_10px_rgb(255_255_255/0.3)]"
+                ? "text-stage-gradient"
+                : "text-white [text-shadow:0_0_12px_rgb(255_255_255/0.35)]"
             }`}
           >
             ×{combo.multiplier}

@@ -9,25 +9,25 @@ import {
   isDemoMode,
   startAudioSession,
 } from "@/components/game/audio-session";
-import { LevelPicker } from "@/components/game/level-game";
 import {
   ResultStat,
   ResultsCard,
   UnlockedAchievements,
 } from "@/components/game/results";
 import { Kbd } from "@/components/kbd";
+import { useSettings } from "@/components/settings-provider";
 import { STRING_COLORS } from "@/components/string-colors";
 import { Button } from "@/components/ui/button";
 import { releaseFocus, useShortcuts } from "@/components/use-shortcuts";
 import type { TierId } from "@/config/difficulty";
-import { EAR_TRAINING } from "@/config/ear-training";
+import { EAR_LEVELS, EAR_TRAINING } from "@/config/ear-training";
 import { KEYS } from "@/config/shortcuts";
 import { debugLog, r } from "@/debug/debug-log";
 import { reportAchievement } from "@/game/achievements";
-import { type Level, levelSettings } from "@/game/difficulty";
 import {
   type EarPrompt,
   type EarResult,
+  earLevelPositions,
   earOutcomes,
   earPrompts,
   judgeAnswer,
@@ -35,13 +35,6 @@ import {
 } from "@/game/ear-training";
 import { saveOutcomes } from "@/game/note-stats";
 import { type Position, positionKey, positionMidi } from "@/game/positions";
-import {
-  loadProgress,
-  NEW_PROGRESS,
-  type Progress,
-  saveProgress,
-} from "@/game/progress";
-import { onDataReplaced } from "@/game/storage-events";
 import { detectPlayedNotes, type PlayedNote } from "@/onset/played-notes";
 import { midiToName } from "@/pitch/notes";
 
@@ -201,14 +194,81 @@ function ignoredReason(
     : "no prompt";
 }
 
+function EarLevelButton({
+  level,
+  onChoose,
+  selected,
+}: {
+  level: number;
+  onChoose: (level: number) => void;
+  selected: boolean;
+}) {
+  const choose = useCallback(() => onChoose(level), [level, onChoose]);
+  const config = EAR_LEVELS[level - 1];
+  return (
+    <button
+      aria-label={`Ear level ${level}: ${config?.name ?? ""}`}
+      aria-pressed={selected}
+      className={`rounded-xl border py-2 font-bold font-heading transition-colors ${
+        selected
+          ? "border-gold bg-gold/12 ring-1 ring-gold/50"
+          : "bg-card hover:bg-secondary"
+      }`}
+      onClick={choose}
+      type="button"
+    >
+      {level}
+    </button>
+  );
+}
+
+/** Ear training's own ten levels, from open strings to the whole neck. */
+function EarLevelPicker({
+  disabled,
+  level,
+  onChoose,
+}: {
+  disabled: boolean;
+  level: number;
+  onChoose: (level: number) => void;
+}) {
+  const config = EAR_LEVELS[level - 1];
+  const notes = earLevelPositions(level).length;
+  return (
+    <fieldset className="flex flex-col gap-3" disabled={disabled}>
+      <legend className="sr-only">Ear training level</legend>
+      <div className="grid grid-cols-5 gap-2 sm:grid-cols-10">
+        {EAR_LEVELS.map((entry, index) => (
+          <EarLevelButton
+            key={entry.name}
+            level={index + 1}
+            onChoose={onChoose}
+            selected={index + 1 === level}
+          />
+        ))}
+      </div>
+      {config ? (
+        <p className="text-sm">
+          <span className="font-bold font-heading">{config.name}</span>{" "}
+          <span className="text-muted-foreground">
+            · {config.description} {notes} notes. No names, no map: just your
+            ears.
+          </span>
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
 /**
  * Ear training: the game plays a note, then listens while you find it on
  * your bass. Hints say higher or lower; after three tries it shows where the
- * note is. It only listens once its own note has faded, so it works without
- * headphones.
+ * note is. It starts listening just after its own note, once the mic has
+ * heard it, so it works without headphones.
  */
 export function EarTraining() {
-  const [progress, setProgress] = useState<Progress>(NEW_PROGRESS);
+  const { settings, update: updateSettings } = useSettings();
+  const { earLevel } = settings;
   const [view, setView] = useState<View>(START_VIEW);
   const [error, setError] = useState("");
 
@@ -223,12 +283,6 @@ export function EarTraining() {
   /** The tier the round's notes came from, for achievements. */
   const tierRef = useRef<TierId>("easy");
   const onNoteRef = useRef<(played: PlayedNote) => void>(() => undefined);
-
-  useEffect(() => {
-    const load = () => setProgress(loadProgress());
-    load();
-    return onDataReplaced(load);
-  }, []);
 
   const update = useCallback((next: View) => {
     viewRef.current = next;
@@ -397,11 +451,13 @@ export function EarTraining() {
     releaseFocus();
     setError("");
     setUnlocked([]);
-    const { positions } = levelSettings(progress.current);
-    tierRef.current = progress.current.tier;
-    promptsRef.current = earPrompts(positions, EAR_TRAINING.prompts);
+    tierRef.current = EAR_LEVELS[earLevel - 1]?.tier ?? "easy";
+    promptsRef.current = earPrompts(
+      earLevelPositions(earLevel),
+      EAR_TRAINING.prompts
+    );
     debugLog("ear-start", {
-      level: `${progress.current.tier} ${progress.current.level}`,
+      level: `ear ${earLevel}`,
       prompts: promptsRef.current.map(({ midi }) => midiToName(midi)),
     });
     demoRef.current = isDemoMode();
@@ -421,26 +477,23 @@ export function EarTraining() {
       setError(describeAudioError(startError));
       update({ ...START_VIEW, stage: "error" });
     }
-  }, [playPrompt, progress, stopAll, update]);
+  }, [earLevel, playPrompt, stopAll, update]);
 
   const stop = useCallback(async () => {
     await stopAll();
     update(START_VIEW);
   }, [stopAll, update]);
 
-  const chooseLevel = useCallback((level: Level) => {
-    setProgress((previous) => {
-      const next = { ...previous, current: level };
-      saveProgress(next);
-      return next;
-    });
-  }, []);
+  const chooseLevel = useCallback(
+    (level: number) => updateSettings({ earLevel: level }),
+    [updateSettings]
+  );
 
   const { hint, index, results, stage, tries } = view;
   const running = !["done", "error", "idle"].includes(stage);
   const prompt = promptsRef.current[index];
   const score = scoreEar(results);
-  const poolSize = levelSettings(progress.current).positions.length;
+
   useShortcuts({
     [KEYS.hearAgain]: stage === "listen" && playPrompt,
     [KEYS.start]: !running && stage !== "starting" && start,
@@ -449,16 +502,11 @@ export function EarTraining() {
 
   return (
     <div className="flex flex-col gap-6">
-      <LevelPicker
-        details={false}
+      <EarLevelPicker
         disabled={running}
+        level={earLevel}
         onChoose={chooseLevel}
-        progress={progress}
       />
-      <p className="text-muted-foreground text-sm">
-        Notes come from the level you pick ({poolSize} of them). No names, no
-        map: just your ears.
-      </p>
 
       <section className="flex min-h-72 flex-col items-center justify-center gap-4 rounded-3xl border bg-card p-6 text-center">
         {running ? (

@@ -1,10 +1,80 @@
 # Bass Hero notes
 
-## Latest: debug log, for testing with a real bass
+## Latest: fixes from the real-bass walkthrough
 
-On the `debug-log` branch (from `ui-polish`).
+On the `walkthrough-fixes` branch (from `debug-log`). Everything here came
+from your session: Safari, the MacBook Pro's built-in mic, open strings and
+Easy 1–3, read from the debug log.
 
-- **Turn it on:** Settings → Testing → Debug log. It's per browser, so
+- **Timing offset (no code change):** the game was using an old 94 ms
+  offset when your playing measured about 47–56 ms, which made on-time
+  plucks look early. With 56 ms, Easy 1 went from 2 misses to 1, with 10
+  Perfect.
+- **Doubled plucks:** on the low E, the laptop mic heard the pick's click,
+  then the note swelling about 27 ms later, as two plucks. The game judged
+  the second, so E notes counted late. The onset detector now drops a
+  pluck that starts within 60 ms of the last one.
+- **Misheard first note:** a note's first pitch reading, right after the
+  attack, can be a semitone off (your first notes read as D♯, F and F♯).
+  A note is now only named when two readings agree. With only one reading
+  before time runs out, it goes with that one.
+- **Freeze at the first note:** the pitch and buzz math only runs when
+  there's sound, so its first run was at your first pluck. A browser's
+  first run of heavy code is slow, so the screen stalled.
+  - It now warms up on a test tone when the run starts, during the
+    countdown.
+  - The canvas glows no longer use blur, which is slow in Safari: they're
+    drawn as wide faint strokes and gradients instead.
+  - The CSS glow filters became text shadows.
+  - Any frame later than 50 ms is now written to the debug log
+    ("slow-frame"), so we can see if anything's left.
+- **Tuner:**
+  - The low E's overtone (82 Hz), which the laptop mic often hears instead
+    of 41 Hz, used to read as "D string, tune down". Now a pitch that's
+    near twice an open string, and near no string itself, reads as that
+    string, with "(its overtone)" on screen.
+  - A reading far from every string (the noise between plucks, read as a
+    high D) is ignored.
+- **Easy is more forgiving:** Perfect ±65 ms and Good ±150 ms, instead of
+  ±50 and ±120. The other tiers are unchanged.
+- **Calibration metronome:** a click on every beat, a higher click on the
+  first beat of each bar, on by default with a checkbox to turn it off.
+  - The laptop mic would hear the click, so the clicks are high (3.2 and
+    4.2 kHz) with a smooth envelope.
+  - Calibration listens through a low-pass filter at 350 Hz: your bass gets
+    through, the click doesn't. A test shows the click is invisible to the
+    pluck detector through it.
+  - The filter adds about 1.3 ms of delay (demo: 42 ms suggested, against
+    40.7 ms before), which is negligible.
+- **Ear training:**
+  - **Its own 10 levels**, picked separately from the game's: open strings,
+    low naturals, first frets, half steps on the E string, first position,
+    to the 5th fret, then up the neck to all 28 notes to the 12th fret. A
+    pitch that's on two strings counts once.
+  - **No more back-and-forth:** with four or more notes, a prompt never
+    repeats either of the last two.
+  - **Listens sooner:** your log showed the mic hearing the game's own
+    note 0.1–0.15 s after it played, and two real answers dropped for
+    coming just before the old 1.1 s wait ended. The wait is now 0.4 s.
+  - **Better sound, everywhere a note plays:** a plucked-string synthesis
+    (Karplus-Strong) instead of a smooth tone. It's full of overtones, so
+    laptop speakers carry even the low E's pitch. A test checks every
+    note's pitch from low E up.
+  - The ear level you pick is saved with your settings, and syncs.
+  - For the Golden Ears achievement, levels 7–10 count as Hard or Demon.
+- **Still to do with your bass:**
+  - Replay Easy 1–3 to confirm the first note and the freeze.
+  - Try a round of ear training.
+  - A buzz test: no note in the session crossed the buzz line, so it's
+    unclear whether the laptop mic can hear fret buzz.
+- **Nothing new to install.**
+
+## Earlier: debug log, for testing with a real bass
+
+On the `debug-log` branch (from `ui-polish`). Committed.
+
+- **Turn it on:** Settings → Testing → Debug log, or open any page with
+  `?debug=on` at the end (`?debug=off` turns it off). It's per browser, so
   turn it on in the browser you play in. A red "Debug log on" badge shows
   while it's recording.
 - **Where it goes:** `data/debug-logs/YYYY-MM-DD.jsonl` on this computer,

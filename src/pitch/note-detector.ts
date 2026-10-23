@@ -7,6 +7,9 @@ import {
   windowSizeFor,
 } from "./pitch-detector";
 
+/** Detector runs on a test tone before listening, to warm it up. */
+const WARM_UP_RUNS = 3;
+
 export interface NoteReading {
   /** How periodic the window was, from 0 to 1. 0 when it was too quiet. */
   clarity: number;
@@ -50,6 +53,22 @@ function levelDbOf(samples: Float32Array) {
   }
   const rms = Math.sqrt(sum / samples.length);
   return rms > 0 ? 20 * Math.log10(rms) : Number.NEGATIVE_INFINITY;
+}
+
+/**
+ * Runs the detector a few times on a test tone. Quiet windows skip the
+ * detector, so otherwise its first real run is at the first note, and a
+ * browser's first runs of heavy code are slow: the screen froze for a
+ * moment at the first note in Safari. Better now, while nothing is playing.
+ */
+function warmUp({ detector, sampleRate, window }: Analysis) {
+  const tone = new Float32Array(window.length);
+  for (let index = 0; index < tone.length; index += 1) {
+    tone[index] = 0.5 * Math.sin((2 * Math.PI * 110 * index) / sampleRate);
+  }
+  for (let run = 0; run < WARM_UP_RUNS; run += 1) {
+    detector.detect(tone, sampleRate);
+  }
 }
 
 /** Keeps the most recent windowSize samples, oldest first. */
@@ -112,6 +131,7 @@ export function detectNotes(
         sampleRate: frame.sampleRate,
         window: new Float32Array(windowSize),
       };
+      warmUp(analysis);
     }
 
     appendToWindow(analysis, frame.samples);

@@ -67,9 +67,16 @@ export function createNotePairer({
   measureBuzzDb?: (onset: Onset, note: Note, untilMs: number) => number | null;
 }) {
   const waiting: Onset[] = [];
+  /**
+   * The first pitch read for the oldest waiting pluck. A note is only named
+   * once a second reading agrees, because the first one, right after the
+   * attack, can be a semitone off (it was, through a laptop mic).
+   */
+  let candidate: Note | null = null;
 
   const finish = (onset: Onset, note: Note | null, untilMs: number) => {
     waiting.shift();
+    candidate = null;
     onNote({
       buzzDb: note ? measureBuzzDb(onset, note, untilMs) : null,
       note,
@@ -90,12 +97,16 @@ export function createNotePairer({
       while (current) {
         if (next && endMs > next.timeMs) {
           // The window already holds the next pluck, so this one can't be
-          // named any more.
-          finish(current, null, endMs);
+          // checked any more: go with the one reading there was, if any.
+          finish(current, candidate, endMs);
         } else if (startMs >= current.timeMs + attackSkipMs && reading.note) {
+          if (candidate?.midi !== reading.note.midi) {
+            candidate = reading.note;
+            return;
+          }
           finish(current, reading.note, endMs);
         } else if (endMs - current.timeMs > identifyTimeoutMs) {
-          finish(current, null, endMs);
+          finish(current, candidate, endMs);
         } else {
           return;
         }
@@ -113,6 +124,19 @@ export function detectPlayedNotes(
   // Keeps recent audio, so each note can be checked for buzz once named.
   const history = createAudioHistory(1);
   const stopHistory = source.onFrame(history.push);
+  // Warm up the buzz check too, on the first frame (see the note detector).
+  let warm = false;
+  const stopWarmUp = source.onFrame(({ sampleRate }) => {
+    if (warm) {
+      return;
+    }
+    warm = true;
+    const tone = new Float32Array(Math.round(0.08 * sampleRate));
+    for (let index = 0; index < tone.length; index += 1) {
+      tone[index] = 0.5 * Math.sin((2 * Math.PI * 110 * index) / sampleRate);
+    }
+    measureBuzz(tone, sampleRate, 110);
+  });
   const pairer = createNotePairer({
     ...options,
     measureBuzzDb: (onset, note, untilMs) => {
@@ -144,6 +168,7 @@ export function detectPlayedNotes(
 
   return () => {
     stopHistory();
+    stopWarmUp();
     stopOnsets();
     stopPitch();
   };

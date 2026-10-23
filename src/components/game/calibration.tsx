@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { lowPass } from "@/audio/low-pass-source";
 import { describeAudioError } from "@/components/audio-errors";
 import {
   type AudioSession,
@@ -45,6 +46,12 @@ interface Beat {
   targetMs: number;
 }
 
+/**
+ * Calibration listens below this, in Hz: a bass's open strings get through,
+ * the metronome's click (3 kHz and up) doesn't.
+ */
+const LISTEN_BELOW_HZ = 350;
+
 function makeBeats(startMs: number): Beat[] {
   const total = CALIBRATION.countInBeats + CALIBRATION.beats;
   return Array.from({ length: total }, (_, index) => {
@@ -87,6 +94,12 @@ export function Calibration() {
   const [result, setResult] = useState<CalibrationResult | null>(null);
   const [savedOffset, setSavedOffset] = useState(0);
   const [manualOffset, setManualOffset] = useState("0");
+  const [metronome, setMetronome] = useState(true);
+  const toggleMetronome = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) =>
+      setMetronome(event.target.checked),
+    []
+  );
   const [saveMessage, setSaveMessage] = useState("");
 
   const sessionRef = useRef<AudioSession | null>(null);
@@ -154,19 +167,38 @@ export function Calibration() {
     try {
       const session = await startAudioSession({
         demo: demoMode,
-        listen: (source) =>
-          detectOnsets(source, { onOnset: (onset) => onOnset(onset) }),
+        listen: (source) => {
+          // Listen through a low-pass filter, so the metronome's high click
+          // coming out of the speakers isn't taken for a pluck.
+          const filtered = lowPass(source, LISTEN_BELOW_HZ);
+          const stopOnsets = detectOnsets(filtered, {
+            onOnset: (onset) => onOnset(onset),
+          });
+          return () => {
+            stopOnsets();
+            filtered.dispose();
+          };
+        },
       });
       sessionRef.current = session;
 
       const scheduled = makeBeats(session.clock.now() + LEAD_IN_MS);
       beatsRef.current = scheduled;
+      if (metronome) {
+        session.click(
+          scheduled.map((beat, index) => ({
+            accent: index % 4 === 0,
+            timeMs: beat.targetMs,
+          }))
+        );
+      }
       debugLog("calibration-start", {
         beats: scheduled.map((beat) => ({
           beat: beat.countIn ? "count-in" : beat.label,
           targetMs: r(beat.targetMs),
         })),
         demo: demoMode,
+        metronome,
         savedOffsetMs: loadLatencyOffset(),
       });
       session.schedulePlucks?.(
@@ -283,6 +315,16 @@ export function Calibration() {
         {buttonLabel}
         <Kbd>{running ? "Esc" : "Space"}</Kbd>
       </Button>
+      <label className="flex items-center justify-center gap-2 text-sm">
+        <input
+          checked={metronome}
+          className="size-4"
+          disabled={running}
+          onChange={toggleMetronome}
+          type="checkbox"
+        />
+        Metronome: a click on every beat, to pluck along to
+      </label>
 
       {phase === "error" && (
         <p className="text-center text-destructive text-sm" role="alert">

@@ -3,8 +3,12 @@ import type { AudioClip } from "@/audio/audio-source";
 import { createSampleSource } from "@/audio/sample-source";
 import { generatePlucks } from "@/audio/tones";
 import { TIMING } from "@/config/timing";
-import { midiToFrequency, parseNote } from "@/pitch/notes";
-import { detectPlayedNotes, type PlayedNote } from "./played-notes";
+import { frequencyToNote, midiToFrequency, parseNote } from "@/pitch/notes";
+import {
+  createNotePairer,
+  detectPlayedNotes,
+  type PlayedNote,
+} from "./played-notes";
 
 const BASS_HARMONICS = [0.6, 1, 0.5, 0.3, 0.15];
 
@@ -128,5 +132,51 @@ describe("detectPlayedNotes", () => {
     const [played] = await playedNotes({ sampleRate: 48_000, samples });
 
     expect(played?.buzzDb).toBeNull();
+  });
+});
+
+describe("naming a pluck", () => {
+  /** A pitch reading of a note, for a window ending at `endMs`. */
+  function reading(note: string | null, endMs: number) {
+    return {
+      clarity: note ? 0.98 : 0,
+      levelDb: -30,
+      note: note ? frequencyToNote(frequencyOf(note)) : null,
+      time: endMs / 1000,
+      windowStart: (endMs - 40) / 1000,
+    };
+  }
+
+  function pair(readings: [string | null, number][]) {
+    const named: (string | null)[] = [];
+    const pairer = createNotePairer({
+      onNote: (played) => named.push(label(played)),
+    });
+    pairer.addOnset({ peak: 0.2, timeMs: 1000 });
+    for (const [note, endMs] of readings) {
+      pairer.addReading(reading(note, endMs));
+    }
+    return named;
+  }
+
+  test("waits for two readings that agree", () => {
+    // Right after the attack, the first reading is a semitone off.
+    expect(
+      pair([
+        ["F1", 1060],
+        ["E1", 1081],
+        ["E1", 1102],
+      ])
+    ).toEqual(["E1"]);
+  });
+
+  test("goes with the only reading there was if time runs out", () => {
+    expect(
+      pair([
+        ["E1", 1060],
+        [null, 1300],
+        [null, 1500],
+      ])
+    ).toEqual(["E1"]);
   });
 });

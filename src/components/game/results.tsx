@@ -31,7 +31,7 @@ export function Stars({
           aria-hidden
           className={
             index < count
-              ? "text-gold drop-shadow-[0_0_12px_var(--gold)]"
+              ? "text-gold [text-shadow:0_0_12px_var(--gold)]"
               : "text-white/12"
           }
           key={index}

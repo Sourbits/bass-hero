@@ -37,7 +37,10 @@ export interface TierConfig {
   showFretHints: boolean;
   /** How many of the pool's notes level 1 uses. */
   startNotes: number;
-  /** Tighter timing windows than the defaults in timing.ts, in ms. */
+  /**
+   * Timing windows for this tier, in ms, when they differ from the defaults
+   * in timing.ts (Perfect ±50, Good ±120): wider on Easy, tighter on Demon.
+   */
   timing?: { goodWindowMs: number; perfectWindowMs: number };
 }
 
@@ -76,7 +79,7 @@ export const TIERS: Record<TierId, TierConfig> = {
     beatsPerNote: [2, 1],
     bpm: [50, 70],
     description:
-      "Starts with the open E and A strings, slowly, and adds a note almost every level, up to the 3rd fret. Fret numbers shown.",
+      "Starts with the open E and A strings, slowly, and adds a note almost every level, up to the 3rd fret. Fret numbers shown, and forgiving timing (Perfect ±65 ms, Good ±150 ms).",
     maxJump: [0.5, 1],
     minJump: [0, 0],
     name: "Easy",
@@ -85,6 +88,9 @@ export const TIERS: Record<TierId, TierConfig> = {
     showFretboard: true,
     showFretHints: true,
     startNotes: 2,
+    // Testing with a real bass, the default Good window felt punishing
+    // while learning; Easy is for getting the notes under your fingers.
+    timing: { goodWindowMs: 150, perfectWindowMs: 65 },
   },
   hard: {
     beatsPerNote: [1, 1],

@@ -146,18 +146,24 @@ function drawStrikeLine(
   { activeLanes, fontFamily, onFire, pulse, showLanes }: StrikeOptions
 ) {
   const { centerX, halfWidth, radius, strikeY } = geometry;
-  // It flashes on every beat, and glows gold when on fire.
+  // It flashes on every beat, and glows gold when on fire. Glows here are
+  // wide, faint strokes and gradients: canvas blur is slow in Safari.
+  const line = () => {
+    context.beginPath();
+    context.moveTo(centerX - halfWidth, strikeY);
+    context.lineTo(centerX + halfWidth, strikeY);
+    context.stroke();
+  };
+  context.strokeStyle = onFire ? FIRE : "#ffffff";
+  context.globalAlpha = onFire ? 0.3 + 0.25 * pulse : 0.22 * pulse;
+  context.lineWidth = (onFire ? 16 : 12) + 6 * pulse;
+  line();
+  context.globalAlpha = 1;
   context.strokeStyle = onFire
     ? FIRE
     : `rgba(255, 255, 255, ${0.5 + 0.4 * pulse})`;
   context.lineWidth = (onFire ? 5 : 3) + 2 * pulse;
-  context.shadowColor = onFire ? FIRE : "#ffffff";
-  context.shadowBlur = onFire ? 18 + 10 * pulse : 14 * pulse;
-  context.beginPath();
-  context.moveTo(centerX - halfWidth, strikeY);
-  context.lineTo(centerX + halfWidth, strikeY);
-  context.stroke();
-  context.shadowBlur = 0;
+  line();
 
   if (!showLanes) {
     return;
@@ -168,16 +174,20 @@ function drawStrikeLine(
     const x = laneX(string, 1, geometry);
     // Lanes this run doesn't use are drawn dim, so the eye stays on the others.
     const active = activeLanes.has(string);
+    context.beginPath();
+    context.arc(x, strikeY, radius, 0, Math.PI * 2);
+    if (active) {
+      context.strokeStyle = STRING_COLORS[string];
+      context.globalAlpha = 0.3 + 0.3 * pulse;
+      context.lineWidth = 9 + 6 * pulse;
+      context.stroke();
+      context.globalAlpha = 1;
+    }
     context.fillStyle = active ? `${STRING_COLORS[string]}40` : "transparent";
     context.strokeStyle = active ? "#ffffff" : LANE_LINE;
     context.lineWidth = 3 + 1.5 * pulse;
-    context.shadowColor = STRING_COLORS[string];
-    context.shadowBlur = active ? 10 + 12 * pulse : 0;
-    context.beginPath();
-    context.arc(x, strikeY, radius, 0, Math.PI * 2);
     context.fill();
     context.stroke();
-    context.shadowBlur = 0;
 
     const laneWidth = (2 * geometry.halfWidth) / STRINGS.length;
     context.fillStyle = active ? "#a5a3c9" : "#4a4770";
@@ -244,12 +254,26 @@ function drawGem(
   if (gem.lane) {
     const x = laneX(gem.lane, scale, geometry);
     // Upcoming notes glow in their string's color.
-    context.shadowColor = gem.color;
-    context.shadowBlur = gem.state === "missed" ? 0 : 24 * scale;
+    if (gem.state !== "missed") {
+      const halo = context.createRadialGradient(
+        x,
+        y,
+        radius * 0.7,
+        x,
+        y,
+        radius * 1.9
+      );
+      halo.addColorStop(0, `${gem.color}90`);
+      halo.addColorStop(1, `${gem.color}00`);
+      context.fillStyle = halo;
+      context.beginPath();
+      context.arc(x, y, radius * 1.9, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = gem.color;
+    }
     context.beginPath();
     context.arc(x, y, radius, 0, Math.PI * 2);
     context.fill();
-    context.shadowBlur = 0;
     // A soft highlight, top left, so it reads as a gem rather than a dot.
     const shine = context.createRadialGradient(
       x - radius * 0.35,
@@ -298,8 +322,6 @@ function drawSparks(
   progress: number
 ) {
   const eased = 1 - (1 - progress) ** 2;
-  context.shadowColor = color;
-  context.shadowBlur = 10;
   for (let spark = 0; spark < SPARKS; spark += 1) {
     const angle = (spark / SPARKS) * Math.PI * 2 + 0.3;
     const distance = radius * (1 + 1.8 * eased);
@@ -315,7 +337,6 @@ function drawSparks(
     );
     context.fill();
   }
-  context.shadowBlur = 0;
 }
 
 function drawBurst(
@@ -419,15 +440,21 @@ function drawCountdown(
   // 0 as a number appears, 1 as it goes: it lands big, then settles.
   const age = 1 - (remaining - (count - 1) * 1000) / 1000;
   const scale = 1 + 0.4 * (1 - Math.min(1, age * 4));
-  context.globalAlpha = Math.min(1, (1 - age) * 3);
-  context.fillStyle = FIRE;
-  context.shadowColor = NEON;
-  context.shadowBlur = 30;
+  const alpha = Math.min(1, (1 - age) * 3);
+  const x = geometry.centerX;
+  const y = geometry.strikeY * 0.45;
   context.textAlign = "center";
   context.textBaseline = "middle";
   context.font = `800 ${Math.round(88 * scale)}px ${displayFont}`;
-  context.fillText(String(count), geometry.centerX, geometry.strikeY * 0.45);
-  context.shadowBlur = 0;
+  // A pink outline as the glow, then the gold number.
+  context.lineJoin = "round";
+  context.strokeStyle = NEON;
+  context.lineWidth = 12 * scale;
+  context.globalAlpha = 0.45 * alpha;
+  context.strokeText(String(count), x, y);
+  context.globalAlpha = alpha;
+  context.fillStyle = FIRE;
+  context.fillText(String(count), x, y);
   context.globalAlpha = 1;
 }
 

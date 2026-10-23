@@ -37,7 +37,7 @@ describe("parseSavedData", () => {
         hitRate: 0.9,
         score: 1200,
       }),
-      settings: { leftHanded: true },
+      settings: { earLevel: 3, leftHanded: true },
       tempo: 85,
       updatedAt: 1_700_000_000_000,
     });
@@ -136,11 +136,11 @@ describe("mergeSavedData", () => {
 
   test("left-handed mode comes from whichever copy set it last", () => {
     const merged = mergeSavedData(
-      data({ settings: { leftHanded: true }, updatedAt: 1 }),
+      data({ settings: { earLevel: 1, leftHanded: true }, updatedAt: 1 }),
       data({ settings: null, updatedAt: 2 })
     );
 
-    expect(merged.settings).toEqual({ leftHanded: true });
+    expect(merged.settings).toEqual({ earLevel: 1, leftHanded: true });
   });
 
   test("doesn't lose a setting the newer copy never had", () => {

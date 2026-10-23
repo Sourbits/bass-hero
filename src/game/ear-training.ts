@@ -1,7 +1,7 @@
 import { createNoise } from "@/audio/tones";
-import { EAR_TRAINING } from "@/config/ear-training";
+import { EAR_LEVELS, EAR_TRAINING } from "@/config/ear-training";
 import type { Outcome } from "./note-stats";
-import { type Position, positionMidi } from "./positions";
+import { type Position, positionMidi, positionName } from "./positions";
 
 export interface EarPrompt {
   midi: number;
@@ -30,23 +30,51 @@ export interface EarScore {
   streak: number;
 }
 
-/** Notes to find by ear, picked at random, never the same twice in a row. */
+/**
+ * An ear training level's notes, one place per pitch: where two places
+ * sound the same (the 5th fret and the next open string), the lower fret.
+ */
+export function earLevelPositions(level: number): Position[] {
+  const config =
+    EAR_LEVELS[Math.min(Math.max(level, 1), EAR_LEVELS.length) - 1];
+  if (!config) {
+    return [];
+  }
+  const byPitch = new Map<number, Position>();
+  for (let fret = 0; fret <= config.maxFret; fret += 1) {
+    for (const string of config.strings) {
+      const position = { fret, string };
+      const midi = positionMidi(position);
+      const sharp = positionName(position).includes("#");
+      if (!(byPitch.has(midi) || (config.naturalsOnly && sharp))) {
+        byPitch.set(midi, position);
+      }
+    }
+  }
+  return [...byPitch.values()];
+}
+
+/**
+ * Notes to find by ear, picked at random. Never the same note twice in a
+ * row, and with four or more to pick from, not one of the last two either,
+ * so the round can't settle into a back-and-forth.
+ */
 export function earPrompts(
   positions: Position[],
   count: number,
   seed = (Date.now() % 2_147_483_646) + 1
 ): EarPrompt[] {
   const random = createNoise(seed);
+  const pitches = new Set(positions.map(positionMidi));
+  const avoid = pitches.size >= 4 ? 2 : 1;
   const prompts: EarPrompt[] = [];
   while (prompts.length < count && positions.length > 0) {
     const index = Math.floor(((random() + 1) / 2) * positions.length);
     const position = positions[Math.min(index, positions.length - 1)];
-    const previous = prompts.at(-1);
+    const recent = prompts.slice(-avoid).map(({ midi }) => midi);
     if (
       position &&
-      (positions.length === 1 ||
-        !previous ||
-        positionMidi(position) !== previous.midi)
+      (pitches.size === 1 || !recent.includes(positionMidi(position)))
     ) {
       prompts.push({ midi: positionMidi(position), position });
     }

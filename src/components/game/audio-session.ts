@@ -1,13 +1,15 @@
 import { type Clock, createAudioClock } from "@/audio/audio-clock";
 import type { AudioSource } from "@/audio/audio-source";
 import { createMicrophoneSource } from "@/audio/microphone-source";
-import { pluckAt } from "@/audio/play-note";
+import { clickAt, pluckAt } from "@/audio/play-note";
 import { createPluckSource } from "@/audio/pluck-source";
 import { debugLog, r } from "@/debug/debug-log";
 import type { DemoPluck } from "@/game/demo";
 import { midiToFrequency } from "@/pitch/notes";
 
 export interface AudioSession {
+  /** Plays metronome clicks at times on the game clock. */
+  click: (beats: { accent: boolean; timeMs: number }[]) => void;
   /** The game clock: AudioContext time in ms. */
   clock: Clock;
   /**
@@ -66,6 +68,11 @@ export async function startAudioSession({
   });
 
   return {
+    click: (beats) => {
+      for (const { accent, timeMs } of beats) {
+        clickAt(context, timeMs / 1000, accent);
+      }
+    },
     clock: createAudioClock(context),
     playAloud: (aloud) => {
       for (const { midi, timeMs } of aloud) {

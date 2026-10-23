@@ -305,3 +305,32 @@ describe("detectOnsets", () => {
     expect(onset?.peak).toBeCloseTo(0.4, 1);
   });
 });
+
+describe("a note that swells after its pluck", () => {
+  test("counts once, at the pluck", async () => {
+    const frequency = frequencyOf("E1");
+    const results = await Promise.all(
+      [20, 27, 40, 55].map((swellMs) =>
+        findOnsets(
+          generatePlucks(
+            [
+              { amplitude: 0.08, frequency, time: 0.5 },
+              { amplitude: 0.2, frequency, time: 0.5 + swellMs / 1000 },
+            ],
+            {
+              duration: 1.5,
+              handoff: "ring",
+              harmonics: BASS_HARMONICS,
+              noise: NOISE,
+              sampleRate: 48_000,
+            }
+          )
+        )
+      )
+    );
+    for (const onsets of results) {
+      expect(onsets).toHaveLength(1);
+      expect(Math.abs((onsets[0]?.timeMs ?? 0) - 500)).toBeLessThan(10);
+    }
+  });
+});

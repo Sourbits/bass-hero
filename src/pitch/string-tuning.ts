@@ -62,3 +62,74 @@ export function tuneString(
   }
   return { cents, direction, string, targetName: midiToName(midi) };
 }
+
+/** Within this many cents of an open string or its overtone, a pitch is that string. */
+const MATCH_CENTS = 150;
+/** Further than this from every string, a pitch isn't an open string at all. */
+const STRAY_CENTS = 600;
+
+/** A pitch read as an open string, for the tuner. */
+export interface OpenStringReading extends StringTuning {
+  /** True when what was heard is the string's overtone, an octave up. */
+  overtone: boolean;
+}
+
+function closestString(
+  frequency: number,
+  strings: readonly BassString[],
+  referenceA4: number
+) {
+  let best = { distance: Number.POSITIVE_INFINITY, string: strings[0] ?? "E" };
+  for (const string of strings) {
+    const distance = Math.abs(
+      centsBetween(
+        frequency,
+        midiToFrequency(OPEN_STRING_MIDI[string], referenceA4)
+      )
+    );
+    if (distance < best.distance) {
+      best = { distance, string };
+    }
+  }
+  return best;
+}
+
+/**
+ * Reads a pitch as an open string: the picked one, or in "auto" whichever
+ * fits.
+ *
+ * A small mic (a laptop's) barely hears a low E's 41 Hz, so it often hears
+ * the string's overtone, an octave up, instead. No open string's overtone
+ * lands near another open string, so a pitch that isn't near any string but
+ * is near twice one is read as that string. A pitch far from every string,
+ * such as the noise of a pluck or a fretted note, gives null.
+ */
+export function readOpenString(
+  frequency: number,
+  picked: BassString | "auto" = "auto",
+  { inTuneCents = IN_TUNE_CENTS, referenceA4 = A4_FREQUENCY } = {}
+): OpenStringReading | null {
+  const strings = picked === "auto" ? STRINGS : [picked];
+  const options = { inTuneCents, referenceA4 };
+  const direct = closestString(frequency, strings, referenceA4);
+  if (direct.distance <= MATCH_CENTS) {
+    return {
+      ...tuneString(frequency, direct.string, options),
+      overtone: false,
+    };
+  }
+  const folded = closestString(frequency / 2, strings, referenceA4);
+  if (folded.distance <= MATCH_CENTS) {
+    return {
+      ...tuneString(frequency / 2, folded.string, options),
+      overtone: true,
+    };
+  }
+  if (direct.distance <= STRAY_CENTS) {
+    return {
+      ...tuneString(frequency, direct.string, options),
+      overtone: false,
+    };
+  }
+  return null;
+}
